@@ -17,7 +17,7 @@ not affiliated with or endorsed by its author.
   extra boards (`boards/`: Parquet, Pentagon, Triangle14) come from the original's binary
   distribution.
 * The seven sound effects (`sound/`) are synthesised for this port (`tools/make_sounds.py`); the
-  sound pack that the original project offers as a separate download is not included.
+  sound pack that the original project offers as a separate download is not included (no licence is stated for it); the README explains how to use it with this port.
 * Text is set in DejaVu Sans (`licenses/DejaVu-fonts-LICENSE.txt`), rasterised into the game at build
   time.
 * The box art was made for this port and is used only to identify the game.
