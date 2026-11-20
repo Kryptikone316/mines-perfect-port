@@ -1,0 +1,25 @@
+Mines-Perfect for the SF3500 - background pictures (backgrounds/*.bg)
+=====================================================================
+
+Copyright (c) 2026 AthruZ (Kryptikone316). All rights reserved except as stated here.
+
+These pictures are fan art: AI-generated concept art made by the port author as an art enthusiast, for
+the enjoyment of players of this port. They are NOT covered by the GNU General Public License that
+applies to the program, and they are not part of the original Mines-Perfect by Christian Czepluch.
+They are not affiliated with or endorsed by anyone.
+
+You may:
+  - look at them and use them as backgrounds in this Mines-Perfect port, free of charge;
+  - pass the port on together with them, unchanged, free of charge (for example on a handheld's
+    memory card or in a free ports collection), as long as this notice stays with them.
+
+You may not:
+  - sell them or use them for any commercial purpose or capital gain, alone or as part of anything
+    that is sold, or that earns money by advertising, donations-for-access or similar;
+  - use, copy, extract, convert or redistribute them anywhere else (other games, apps, websites,
+    wallpapers, print, merchandise, AI training sets, ...) without the author's written permission.
+
+Your own pictures that you put into the backgrounds folder are yours and are not affected.
+
+To the extent that any rights exist in these pictures, they are held by the author under the terms
+above. The pictures are provided as they are, without warranty of any kind.

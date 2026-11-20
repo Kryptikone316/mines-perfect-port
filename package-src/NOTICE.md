@@ -11,8 +11,8 @@ not affiliated with or endorsed by its author.
   for a current compiler (clock, itoa, stricmp), two `max`/`transform` fixes, `!in` instead of
   `in == 0` for streams, and four geometry accessors added to the board control for the gamepad cursor.
   Everything the original did with wxWidgets (window, menus, dialogs, bitmaps, sound, timer) is
-  replaced by the new SDL2 front end in `sdl/`, written for this port. The port is under the same
-  licence, GPL-2.0-or-later.
+  replaced by the new SDL2 front end in `sdl/`, written for this port. The port's program code is under the same
+  licence, GPL-2.0-or-later (the background pictures excepted, see below).
 * The cell, digit, smiley and board pictures are the original's (XPM data from its source tree). The
   extra boards (`boards/`: Parquet, Pentagon, Triangle14) come from the original's binary
   distribution.
@@ -20,9 +20,11 @@ not affiliated with or endorsed by its author.
   sound pack that the original project offers as a separate download is not included (no licence is stated for it); the README explains how to use it with this port.
 * Text is set in DejaVu Sans (`licenses/DejaVu-fonts-LICENSE.txt`), rasterised into the game at build
   time.
-* The six background pictures (`backgrounds/*.bg`) are AI-generated concept art supplied by the port
-  author for this port; they are not part of the original game. Pictures showing third-party game
-  artwork were left out. (Licence of these pictures: see the port author's statement in the release.)
+* **The six background pictures (`backgrounds/*.bg`) are not under the GPL.** They are fan art: AI-generated
+  concept art made by the port author, free of charge, for use with this port only, not for any commercial
+  purpose, and not to be used anywhere else (`licenses/Backgrounds-LICENCE.txt`, also in `backgrounds/`).
+  They are separate data files, not part of the program or of its source, and are not in the source
+  tarball. They are not part of the original game. Pictures that showed third-party game artwork were left out.
 * The box art was made for this port and is used only to identify the game.
 * The complete corresponding source of this port, with the scripts that build it, is in
   `licenses/minesperfect-sf3500-source.tar.xz`.

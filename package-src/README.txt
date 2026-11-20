@@ -59,7 +59,8 @@ BACKGROUNDS
 -----------
 START > Settings > Background shows the gallery with the real game window on top: Left/Right to
 browse, A to choose, B to cancel. "Classic" is the plain original look. Six pictures are included
-(backgrounds/*.bg).
+(backgrounds/*.bg). They are fan art by the port's author: free to use with this port,
+not for commercial use, not to be used anywhere else (see backgrounds/LICENCE.txt).
 Your own pictures: put a .bmp file (uncompressed 24-bit is safest; 8 and 32 bit also work) into the
 backgrounds folder. Best is exactly 640 x 480; any other size is cropped from the middle to 4:3 and
 scaled to 640 x 480. The file name is shown in the gallery (underscores become spaces; a leading

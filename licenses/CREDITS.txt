@@ -10,3 +10,7 @@ Sound effects (sound/)
 
 DejaVu Sans (glyphs rasterised into the game)
   (c) Bitstream, Inc.; DejaVu changes are public domain. See DejaVu-fonts-LICENSE.txt.
+
+Background pictures (backgrounds/)
+  Fan art by AthruZ (Kryptikone316), AI-generated; NOT GPL. Free of charge, with this port only, no commercial use,
+  not to be used elsewhere. See Backgrounds-LICENCE.txt.
