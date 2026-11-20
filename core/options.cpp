@@ -311,6 +311,7 @@ const char INI_FNAME[] = "mineperf.ini";
 
   // 1. Zeile testen
   getline (in, line);
+    if (!line.empty() && line[line.size() - 1] == '\r') line.erase (line.size() - 1);   // SF3500 port: files from Windows have CR LF
   if (line[0] != '['
   ||  line.substr (1, TITLE.length()) != TITLE)
     return false;
@@ -323,6 +324,7 @@ const char INI_FNAME[] = "mineperf.ini";
   while (!in.eof())
   {
     getline (in, line);
+    if (!line.empty() && line[line.size() - 1] == '\r') line.erase (line.size() - 1);   // SF3500 port: files from Windows have CR LF
 
     p1 = line.find_first_not_of (" \t");
     if (p1 == string::npos)

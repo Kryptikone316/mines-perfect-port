@@ -189,6 +189,7 @@ struct BoardReadError
   while (!in.eof())
   {
     getline (in, line);
+    if (!line.empty() && line[line.size() - 1] == '\r') line.erase (line.size() - 1);   // SF3500 port: files from Windows have CR LF
     ++file_row;
 
     p2 = 0;

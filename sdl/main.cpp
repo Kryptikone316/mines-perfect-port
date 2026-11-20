@@ -469,6 +469,7 @@ static void run()
     InitApi();
     if (const char* sd = getenv("MP_SEED")) Glob::rand_int.setStart((uint32) atoi(sd));   // test hook: reproducible boards
     g_game = new GameCtrl(g_opt);
+    if (getenv("MP_LISTBOARDS")) for (int i = 0; i < g_opt->getNumBoards(); i++) fprintf(stderr, "board %d: %s\n", i, g_opt->getBoardName(i).c_str());
     // test hook: MP_START="board,level[,height,width,mines]" (level 0..3)
     if (const char* st = getenv("MP_START"))
     {

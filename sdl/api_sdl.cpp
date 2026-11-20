@@ -160,6 +160,17 @@ BitmapImpl::BitmapImpl(const string& kind, const string& spec) : trans(true)
     {
         static Image ext;
         string fname = string("./boards/") + spec + ".bmp";
+        if (!FileExist(fname))   // the original shipped PENTAGON.BMP next to Pentagon.txt: look case-insensitively
+        {
+            DIR* d = opendir("./boards");
+            if (d)
+            {
+                struct dirent* e;
+                while ((e = readdir(d)))
+                    if (!strcasecmp(e->d_name, (spec + ".bmp").c_str())) { fname = string("./boards/") + e->d_name; break; }
+                closedir(d);
+            }
+        }
         if (load_bmp(fname, ext, true)) { img = ext.px; return; }
         if (spec == "Square") image = &g_square;
         else if (spec == "Triangle") image = &g_triangle;
