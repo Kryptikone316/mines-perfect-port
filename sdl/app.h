@@ -35,7 +35,8 @@ struct MItem
     int check;                          // -1 none, 0 radio/check off, 1 on
     bool enabled;
     bool sub;                           // shows an arrow
-    MItem(const std::string& t, int i, int c = -1, bool en = true, bool s = false) : text(t), id(i), check(c), enabled(en), sub(s) {}
+    std::string help;                   // one or two plain-language lines shown at the bottom while the item is selected
+    MItem(const std::string& t, int i, int c = -1, bool en = true, bool s = false, const char* h = "") : text(t), id(i), check(c), enabled(en), sub(s), help(h) {}
 };
 int  ui_menu(const char* title, const std::vector<MItem>& items, int sel = 0);                      // id, or -1 for B
 void ui_message(const char* title, const char* text);
@@ -44,7 +45,8 @@ bool ui_text_entry(const char* title, const char* prompt, std::string& text, uns
 bool ui_selfdefined(MinesPerfect::Level& lvl);
 void ui_best_times(MinesPerfect::Options* options);
 void ui_new_record(MinesPerfect::Options* options, int msecs, bool certified);
-void ui_help_pages(int first);
+void ui_help_pages(int first);          // first = page number (see g_pages in ui.cpp: PAGE_SOLVER)
+enum { PAGE_SOLVER = 2 };
 void ui_about();
 int  ui_pick_file(const char* title, const std::vector<std::string>& names);
 void g_dim(Surf& s);

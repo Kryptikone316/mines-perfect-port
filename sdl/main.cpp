@@ -25,6 +25,9 @@ PadState g_pad;
 static Options* g_opt = 0;
 static GameCtrl* g_game = 0;
 static bool g_sound = true;
+static bool g_solver = true;            // solver assistance on (modes, hint, tools); off = classic Minesweeper
+static int g_saved_mode = LUCKY;        // what to restore when it is switched on again
+static bool g_saved_murphy = true;
 static int g_zoom_pref = 0;             // 0 = fit the whole board, else 1..4
 static CellNr g_cur = INVALID_CELL;
 static bool g_a_down = false, g_b_down = false;
@@ -50,6 +53,9 @@ static void cfg_load()
         int v;
         if (sscanf(line, "sound=%d", &v) == 1) g_sound = v != 0;
         else if (sscanf(line, "zoom=%d", &v) == 1 && v >= 0 && v <= 5) g_zoom_pref = v;
+        else if (sscanf(line, "solver=%d", &v) == 1) g_solver = v != 0;
+        else if (sscanf(line, "savedmode=%d", &v) == 1 && v >= 0 && v <= 4) g_saved_mode = v;
+        else if (sscanf(line, "savedmurphy=%d", &v) == 1) g_saved_murphy = v != 0;
     }
     fclose(f);
 }
@@ -58,7 +64,7 @@ static void cfg_save()
 {
     FILE* f = fopen(CFG, "w");
     if (!f) return;
-    fprintf(f, "sound=%d\nzoom=%d\n", g_sound ? 1 : 0, g_zoom_pref);
+    fprintf(f, "sound=%d\nzoom=%d\nsolver=%d\nsavedmode=%d\nsavedmurphy=%d\n", g_sound ? 1 : 0, g_zoom_pref, g_solver ? 1 : 0, g_saved_mode, g_saved_murphy ? 1 : 0);
     fclose(f);
 }
 
@@ -176,7 +182,7 @@ static void render_scene()
 
     // footer hint when the board leaves room
     if (SCR_H - (oy + v.dh) >= 26)
-        g_text_c(d, font_small(), SCR_W / 2, SCR_H - 22, 0xC0E0E0, "A open   B flag   X hint   Y new   L1 undo   R1 redo   START menu");
+        g_text_c(d, font_small(), SCR_W / 2, SCR_H - 22, 0xC0E0E0, g_solver ? "A open   B flag   X hint   Y new   L1 undo   R1 redo   START menu" : "A open   B flag   Y new   L1 undo   R1 redo   START menu");
 }
 
 void app_draw_scene()
@@ -263,14 +269,50 @@ static void game_show() { g_game->show(); }
 //------------------------------------------------------------------------------
 enum
 {
-    M_RESUME = 1, M_NEW, M_LEVEL, M_MODE, M_BOARD, M_TOOLS, M_OPEN, M_SAVE, M_BEST, M_SETTINGS, M_HELP, M_QUIT,
+    M_RESUME = 1, M_NEW, M_RESTART, M_LEVEL, M_BOARD, M_BEST, M_CONFIG, M_HELP, M_QUIT,
     L_BEG = 100, L_INT, L_EXP, L_SELF,
     D_ORIG = 110, D_HINT, D_IMMUNE, D_LUCKY, D_STARTUP, D_MURPHY,
-    T_HINT = 120, T_ONE, T_ALL1, T_ALL2, T_ALL3, T_AUTO0, T_AUTO1, T_AUTO2, T_AUTO3, T_MAX1, T_MAX2, T_MAX3, T_MINES, T_UNDO, T_REDO, T_UNDOALL,
-    S_SOUND = 140, S_ZOOM,
-    H_PAGES = 150, H_ABOUT,
+    T_HINT = 120, T_ONE, T_ALL1, T_ALL2, T_ALL3, T_AUTO0, T_AUTO1, T_AUTO2, T_AUTO3, T_MAX1, T_MAX2, T_MAX3, T_MINES,
+    C_SOLVER = 140, C_MODE, C_TOOLS, C_SAVE, C_OPEN, C_SOUND, C_ZOOM,
+    H_PAGES = 150, H_SOLVER, H_ABOUT,
     B_FIRST = 200
 };
+
+static const char* mode_name(Modus m)
+{
+    return m == ORIGINAL ? "Original" : m == HINTS ? "Hint" : m == IMMUNE ? "Immune" : m == LUCKY ? "Lucky" : "Startup";
+}
+
+// "Solver: off" = classic Minesweeper: mode Original, no tools, no Murphy's Law. Turning it on again restores what you had.
+static void solver_off_state()
+{
+    g_game->changeSolveAuto(0);
+    g_game->changeMaxStage(MAX_STAGE);
+    if (g_opt->getShowMines()) g_game->setShowMines(false);
+    g_game->setMurphysLaw(false);
+    g_game->changeModus(ORIGINAL);
+}
+
+static void solver_set(bool on)
+{
+    if (on == g_solver) return;
+    if (!on)
+    {
+        g_saved_mode = (int) g_opt->getModus();
+        g_saved_murphy = g_opt->getMurphysLaw();
+        g_solver = false;
+        solver_off_state();
+    }
+    else
+    {
+        g_solver = true;
+        g_game->changeModus((Modus) g_saved_mode);
+        g_game->setMurphysLaw(g_saved_murphy);
+    }
+    cfg_save();
+    g_scene_dirty = true;
+    game_show();
+}
 
 static bool menu_level()
 {
@@ -293,27 +335,6 @@ static bool menu_level()
     return true;
 }
 
-static bool menu_mode()
-{
-    int sel = 0;
-    for (;;)
-    {
-        Options* o = g_opt;
-        vector<MItem> it;
-        it.push_back(MItem("Original", D_ORIG, o->getModus() == ORIGINAL));
-        it.push_back(MItem("Hint", D_HINT, o->getModus() == HINTS));
-        it.push_back(MItem("Immune", D_IMMUNE, o->getModus() == IMMUNE));
-        it.push_back(MItem("Lucky", D_LUCKY, o->getModus() == LUCKY, o->getMaxStage() == MAX_STAGE));
-        it.push_back(MItem("Startup", D_STARTUP, o->getModus() == STARTUP));
-        it.push_back(MItem("Murphy's Law", D_MURPHY, o->getMurphysLaw()));
-        int id = ui_menu("Mode", it, sel);
-        if (id < 0) return false;
-        if (id == D_MURPHY) { g_game->setMurphysLaw(!o->getMurphysLaw()); sel = 5; game_show(); continue; }
-        g_game->changeModus(id == D_ORIG ? ORIGINAL : id == D_HINT ? HINTS : id == D_IMMUNE ? IMMUNE : id == D_LUCKY ? LUCKY : STARTUP);
-        return true;
-    }
-}
-
 static bool menu_board()
 {
     vector<MItem> it;
@@ -325,6 +346,34 @@ static bool menu_board()
     return true;
 }
 
+static void menu_mode()
+{
+    int sel = (int) g_opt->getModus() == ORIGINAL ? 0 : g_opt->getModus() == HINTS ? 1 : g_opt->getModus() == IMMUNE ? 2 : g_opt->getModus() == LUCKY ? 3 : 4;
+    for (;;)
+    {
+        Options* o = g_opt;
+        vector<MItem> it;
+        it.push_back(MItem("Original", D_ORIG, o->getModus() == ORIGINAL, true, false,
+            "Classic rules. When you are stuck you must guess, and a wrong guess ends the game."));
+        it.push_back(MItem("Hint", D_HINT, o->getModus() == HINTS, true, false,
+            "When you are stuck, the solver opens or flags one certain cell for you."));
+        it.push_back(MItem("Immune", D_IMMUNE, o->getModus() == IMMUNE, true, false,
+            "Your next move is protected: if you open a mine while guessing, the game goes on."));
+        it.push_back(MItem("Lucky", D_LUCKY, o->getModus() == LUCKY, o->getMaxStage() == MAX_STAGE, false,
+            "When you are stuck, a guess is always safe: the solver moves the mines to fit. (Needs max. stage 3.) This is the default."));
+        it.push_back(MItem("Startup", D_STARTUP, o->getModus() == STARTUP, true, false,
+            "A new game starts with enough cells opened and flagged that you never need to guess."));
+        it.push_back(MItem("Murphy's Law", D_MURPHY, o->getMurphysLaw(), true, false,
+            "The opposite of Lucky: any cell that could hold a mine does. For people who want a harder game."));
+        int id = ui_menu("Mode: what happens when you must guess", it, sel);
+        if (id < 0) return;
+        if (id == D_MURPHY) { g_game->setMurphysLaw(!o->getMurphysLaw()); sel = 5; game_show(); continue; }
+        g_game->changeModus(id == D_ORIG ? ORIGINAL : id == D_HINT ? HINTS : id == D_IMMUNE ? IMMUNE : id == D_LUCKY ? LUCKY : STARTUP);
+        game_show();
+        return;
+    }
+}
+
 static bool menu_tools()
 {
     int sel = 0;
@@ -332,24 +381,29 @@ static bool menu_tools()
     {
         Options* o = g_opt;
         vector<MItem> it;
-        it.push_back(MItem("Hint", T_HINT));
-        it.push_back(MItem("Solve One", T_ONE));
-        it.push_back(MItem("Solve All, to stage 1", T_ALL1));
-        it.push_back(MItem("Solve All, to stage 2", T_ALL2));
-        it.push_back(MItem("Solve All, to stage 3", T_ALL3));
-        it.push_back(MItem("Solve Auto: off", T_AUTO0, o->getAutoStage() == 0));
-        it.push_back(MItem("Solve Auto: stage 1", T_AUTO1, o->getAutoStage() == 1));
-        it.push_back(MItem("Solve Auto: stage 2", T_AUTO2, o->getAutoStage() == 2));
-        it.push_back(MItem("Solve Auto: stage 3", T_AUTO3, o->getAutoStage() == 3));
+        it.push_back(MItem("Hint", T_HINT, -1, true, false,
+            "Marks cells to look at: either open numbers that prove a covered cell, or covered cells you can open or flag."));
+        it.push_back(MItem("Solve one move", T_ONE, -1, true, false, "The solver makes one certain move for you."));
+        it.push_back(MItem("Solve all, up to stage 1", T_ALL1, -1, true, false,
+            "Plays every certain move that needs only a single open cell (stage 1: the easiest)."));
+        it.push_back(MItem("Solve all, up to stage 2", T_ALL2, -1, true, false,
+            "Plays every certain move that needs one or two open cells together."));
+        it.push_back(MItem("Solve all, up to stage 3", T_ALL3, -1, true, false,
+            "Plays every certain move there is, however hard. The board is solved as far as it can be without guessing."));
+        it.push_back(MItem("Auto-solve: off", T_AUTO0, o->getAutoStage() == 0, true, false, "You make all the moves yourself."));
+        it.push_back(MItem("Auto-solve: stage 1", T_AUTO1, o->getAutoStage() == 1, true, false,
+            "After each of your moves, the easiest certain moves are played for you."));
+        it.push_back(MItem("Auto-solve: stage 2", T_AUTO2, o->getAutoStage() == 2, true, false,
+            "After each of your moves, certain moves up to stage 2 are played for you."));
+        it.push_back(MItem("Auto-solve: stage 3", T_AUTO3, o->getAutoStage() == 3, true, false,
+            "After each of your moves, every certain move is played: the game nearly plays itself."));
         bool ms = o->getModus() != LUCKY;
-        it.push_back(MItem("Max. stage 1", T_MAX1, o->getMaxStage() == 1, ms));
-        it.push_back(MItem("Max. stage 2", T_MAX2, o->getMaxStage() == 2, ms));
-        it.push_back(MItem("Max. stage 3", T_MAX3, o->getMaxStage() == 3, ms));
-        it.push_back(MItem("Show Mines", T_MINES, o->getShowMines()));
-        it.push_back(MItem("Undo", T_UNDO));
-        it.push_back(MItem("Redo", T_REDO));
-        it.push_back(MItem("Undo All", T_UNDOALL));
-        int id = ui_menu("Help tools", it, sel);
+        it.push_back(MItem("Max. stage 1", T_MAX1, o->getMaxStage() == 1, ms, false,
+            "Treats anything harder than stage 1 as a dead end, so help (modes Hint/Immune/Startup) comes sooner. Not with Lucky."));
+        it.push_back(MItem("Max. stage 2", T_MAX2, o->getMaxStage() == 2, ms, false, "Same, for anything harder than stage 2. Not with Lucky."));
+        it.push_back(MItem("Max. stage 3", T_MAX3, o->getMaxStage() == 3, ms, false, "Normal: nothing is treated as too hard."));
+        it.push_back(MItem("Show mines", T_MINES, o->getShowMines(), true, false, "Reveals where all the mines are."));
+        int id = ui_menu("Solver tools (stop the clock: no record)", it, sel);
         if (id < 0) return false;
         switch (id)
         {
@@ -361,9 +415,6 @@ static bool menu_tools()
         case T_AUTO0: case T_AUTO1: case T_AUTO2: case T_AUTO3: g_game->changeSolveAuto(id - T_AUTO0); break;
         case T_MAX1: case T_MAX2: case T_MAX3: g_game->changeMaxStage(id - T_MAX1 + 1); break;
         case T_MINES: g_game->setShowMines(!o->getShowMines()); break;
-        case T_UNDO: g_game->undo(false); return true;
-        case T_REDO: g_game->redo(); return true;
-        case T_UNDOALL: g_game->undo(true); return true;
         }
         sel = id == T_MINES ? 12 : (id >= T_AUTO0 && id <= T_AUTO3) ? 5 + (id - T_AUTO0) : 9 + (id - T_MAX1);
         game_show();
@@ -389,21 +440,47 @@ static void menu_save()
     g_game->save(path);
 }
 
-static void menu_settings()
+// Game Configuration: everything that is not "play a level": solver on/off, mode, solver tools, saved games, sound, zoom.
+// Returns true when the menus should close (a tool made a move).
+static bool menu_config()
 {
     int sel = 0;
     for (;;)
     {
         vector<MItem> it;
-        it.push_back(MItem("Sound", S_SOUND, g_sound ? 1 : 0));
+        it.push_back(MItem(string("Solver: ") + (g_solver ? "On" : "Off"), C_SOLVER, g_solver ? 1 : 0, true, false,
+            g_solver ? "Mines-Perfect's solver can protect you from guesses and help with hints. Switch it off to play classic Minesweeper, with no help at all."
+                     : "Classic Minesweeper: no protection, no hints, no tools. Switch it on for the solver's modes and tools (it remembers your settings)."));
+        if (g_solver)
+        {
+            it.push_back(MItem(string("Mode: ") + mode_name(g_opt->getModus()) + (g_opt->getMurphysLaw() ? " + Murphy" : ""), C_MODE, -1, true, true,
+                "What the solver does when only a guess is left: protect you, help, or leave you alone."));
+            it.push_back(MItem("Solver tools", C_TOOLS, -1, true, true,
+                "Hint, solve a move or the whole board, auto-solve, show mines. Using them stops the clock: no record is made."));
+        }
+        it.push_back(MItem("Save game", C_SAVE, -1, true, false, "Saves this game (every move) to logs/<name>.log on the card."));
+        it.push_back(MItem("Open game", C_OPEN, -1, true, false, "Replays a saved game and carries on from where it stopped."));
+        it.push_back(MItem(string("Sound: ") + (g_sound ? "On" : "Off"), C_SOUND, g_sound ? 1 : 0, true, false, "Game sound effects."));
         char b[48];
         if (g_zoom_pref == 0) snprintf(b, sizeof b, "Zoom: auto"); else if (g_zoom_pref == 5) snprintf(b, sizeof b, "Zoom: fit (smooth)"); else snprintf(b, sizeof b, "Zoom: %dx", g_zoom_pref);
-        it.push_back(MItem(b, S_ZOOM));
-        int id = ui_menu("Settings", it, sel);
-        if (id < 0) return;
-        if (id == S_SOUND) g_sound = !g_sound, sel = 0;
-        if (id == S_ZOOM) g_zoom_pref = (g_zoom_pref + 1) % 6, sel = 1;
-        cfg_save();
+        it.push_back(MItem(b, C_ZOOM, -1, true, false,
+            "Auto: whole board, in whole steps (sharp) or smoothed when that leaves much unused. L2/R2 zoom out/in during play."));
+        int id = ui_menu("Game Configuration", it, sel);
+        if (id < 0) return false;
+        switch (id)
+        {
+        case C_SOLVER: solver_set(!g_solver); break;
+        case C_MODE: menu_mode(); break;
+        case C_TOOLS: if (menu_tools()) return true; break;
+        case C_SAVE: menu_save(); break;
+        case C_OPEN: menu_open(); return true;
+        case C_SOUND: g_sound = !g_sound; cfg_save(); break;
+        case C_ZOOM: g_zoom_pref = (g_zoom_pref + 1) % 6; cfg_save(); break;
+        }
+        // keep the cursor on the same item (the solver rows come and go)
+        sel = id == C_SOLVER ? 0 : id == C_MODE ? 1 : id == C_TOOLS ? 2 : id == C_SAVE ? (g_solver ? 3 : 1) : id == C_OPEN ? (g_solver ? 4 : 2)
+            : id == C_SOUND ? (g_solver ? 5 : 3) : (g_solver ? 6 : 4);
+        game_show();
     }
 }
 
@@ -411,9 +488,11 @@ static void menu_help()
 {
     vector<MItem> it;
     it.push_back(MItem("How to play", H_PAGES));
+    it.push_back(MItem("What is the solver?", H_SOLVER));
     it.push_back(MItem("About", H_ABOUT));
     int id = ui_menu("Help", it, 0);
     if (id == H_PAGES) ui_help_pages(0);
+    else if (id == H_SOLVER) ui_help_pages(PAGE_SOLVER);
     else if (id == H_ABOUT) ui_about();
 }
 
@@ -425,14 +504,11 @@ static void menu_main()
         vector<MItem> it;
         it.push_back(MItem("Resume", M_RESUME));
         it.push_back(MItem("New Game", M_NEW));
+        it.push_back(MItem("Restart This Board", M_RESTART, -1, true, false, "Plays the same board again from the start (undoes every move)."));
         it.push_back(MItem("Level", M_LEVEL, -1, true, true));
-        it.push_back(MItem("Mode", M_MODE, -1, true, true));
-        it.push_back(MItem("Board", M_BOARD, -1, true, true));
-        it.push_back(MItem("Help tools", M_TOOLS, -1, true, true));
-        it.push_back(MItem("Open game", M_OPEN));
-        it.push_back(MItem("Save game", M_SAVE));
+        it.push_back(MItem("Board", M_BOARD, -1, true, true, "The shape of the cells: squares, hexagons, triangles and more."));
         it.push_back(MItem("Best Times", M_BEST));
-        it.push_back(MItem("Settings", M_SETTINGS, -1, true, true));
+        it.push_back(MItem("Game Configuration", M_CONFIG, -1, true, true, "Solver on/off, mode and tools, save and open games, sound, zoom."));
         it.push_back(MItem("Help", M_HELP, -1, true, true));
         it.push_back(MItem("Quit", M_QUIT));
         int id = ui_menu("Mines-Perfect", it, sel);
@@ -442,14 +518,11 @@ static void menu_main()
         switch (id)
         {
         case M_NEW: g_game->newGame(); close = true; break;
+        case M_RESTART: g_game->undo(true); close = true; break;
         case M_LEVEL: close = menu_level(); break;
-        case M_MODE: close = menu_mode(); break;
         case M_BOARD: close = menu_board(); break;
-        case M_TOOLS: close = menu_tools(); break;
-        case M_OPEN: menu_open(); close = true; break;
-        case M_SAVE: menu_save(); break;
         case M_BEST: ui_best_times(g_opt); break;
-        case M_SETTINGS: menu_settings(); break;
+        case M_CONFIG: close = menu_config(); break;
         case M_HELP: menu_help(); break;
         case M_QUIT: if (ui_confirm("Quit", "Quit Mines-Perfect?")) app_quit(0); break;
         }
@@ -479,6 +552,7 @@ static void run()
         if (n >= 5) { Level lv = g_opt->getLevel(); lv.nr = USER_DEFINED; lv.height = h; lv.width = w; lv.num_mines = m; g_game->changeLevel(lv); }
         else if (n >= 2) g_game->changeLevel((LevelNr) l);
     }
+    if (!g_solver) solver_off_state();       // classic mode stays classic across restarts
     g_game->setDirty();
     game_show();
     centre_cursor();
@@ -492,9 +566,11 @@ static void run()
         else if (!strcmp(ui, "about")) ui_about();
         else if (!strcmp(ui, "save")) menu_save();
         else if (!strcmp(ui, "open")) menu_open();
-        else if (!strcmp(ui, "settings")) menu_settings();
+        else if (!strcmp(ui, "config")) menu_config();
         else if (!strcmp(ui, "tools")) menu_tools();
         else if (!strcmp(ui, "mode")) menu_mode();
+        else if (!strcmp(ui, "main")) menu_main();
+        else if (!strcmp(ui, "helpmenu")) menu_help();
         game_show();
     }
     if (getenv("MP_BOT"))     // test hook: open the middle cell, let the solver finish the game, report
@@ -552,7 +628,7 @@ static void run()
             if (g_pad.down & B_B) { g_b_down = true; send_mouse(MouseEvent::RIGHT_DOWN); }
             if (g_pad.up & B_B) { g_b_down = false; send_mouse(MouseEvent::RIGHT_UP); }
 
-            if (g_pad.down & B_X) { g_game->giveHint(); game_show(); }
+            if ((g_pad.down & B_X) && g_solver) { g_game->giveHint(); game_show(); }
             if (g_pad.down & B_Y) { g_game->newGame(); game_show(); }
             if (g_pad.down & B_L1) { g_game->undo(false); game_show(); }
             if (g_pad.down & B_R1) { g_game->redo(); game_show(); }

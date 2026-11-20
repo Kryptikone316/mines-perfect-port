@@ -85,6 +85,8 @@ int ui_menu(const char* title, const vector<MItem>& items, int sel)
     int n = (int) items.size();
     if (n == 0) return -1;
     if (sel < 0 || sel >= n) sel = 0;
+    bool any_help = false;
+    for (int i = 0; i < n; i++) if (!items[i].help.empty()) any_help = true;
     int w = g_text_w(font_bold(), title) + 40;
     for (int i = 0; i < n; i++)
     {
@@ -92,9 +94,12 @@ int ui_menu(const char* title, const vector<MItem>& items, int sel)
         if (tw > w) w = tw;
     }
     if (w < 300) w = 300;
+    if (any_help && w < 520) w = 520;
     if (w > 600) w = 600;
+    int helph = any_help ? 3 * (g_font_h(font_small()) + 1) + 14 : 0;     // room for three lines of description
     int rows = n < maxrows ? n : maxrows;
-    int h = 34 + rows * rowh + 14;
+    if (any_help && rows > 11) rows = 11;
+    int h = 34 + rows * rowh + 14 + helph;
     int x = (SCR_W - w) / 2, y = (SCR_H - h) / 2;
     int top = 0;
     for (;;)
@@ -127,10 +132,20 @@ int ui_menu(const char* title, const vector<MItem>& items, int sel)
         if (n > rows)
         {   // scroll hint
             if (top > 0) g_text_c(g_scr, font_small(), x + w - 20, y + 8, WHITE, "^");
-            if (top + rows < n) g_text_c(g_scr, font_small(), x + w - 20, y + h - 20, 0x404040, "v");
+            if (top + rows < n) g_text_c(g_scr, font_small(), x + w - 20, y + 34 + rows * rowh, 0x404040, "v");
+        }
+        if (any_help)
+        {
+            int hy = y + 34 + rows * rowh + 6;
+            g_hline(g_scr, x + 8, x + w - 9, hy, GREY);
+            g_hline(g_scr, x + 8, x + w - 9, hy + 1, WHITE);
+            vector<string> lines;
+            wrap_text(items[sel].help.c_str(), font_small(), w - 28, lines);
+            for (size_t i = 0; i < lines.size() && i < 3; i++)
+                g_text(g_scr, font_small(), x + 14, hy + 5 + (int) i * (g_font_h(font_small()) + 1), 0x202020, lines[i].c_str());
         }
         ui_frame();
-        if (g_pad.down & B_UP) { do { sel = (sel + n - 1) % n; } while (0); }
+        if (g_pad.down & B_UP) sel = (sel + n - 1) % n;
         if (g_pad.down & B_DOWN) sel = (sel + 1) % n;
         if (g_pad.down & B_LEFT) { sel -= rows; if (sel < 0) sel = 0; }
         if (g_pad.down & B_RIGHT) { sel += rows; if (sel >= n) sel = n - 1; }
@@ -373,6 +388,11 @@ static const HelpPage g_pages[] =
       "Quick opening works when all mines around the cell are found, i.e. its number equals the number of flagged neighbours.\n"
       "Quick flagging works when all possible cells are open, i.e. its number equals the number of covered neighbours.\n"
       "If the condition is not fulfilled, nothing happens." },
+    { "The solver",
+      "Mines-Perfect's special feature is a solver that reads the board like an expert player. It can tell, for every position, whether a covered cell is certainly safe, certainly a mine, or whether you can only guess.\n"
+      "You can leave it entirely off (START > Game Configuration > Solver: Off) and play classic Minesweeper.\n"
+      "With the solver on, the smiley shows how hard the next certain move is (the three stages), the Mode decides what happens when only a guess is left, and the Solver tools can show or make certain moves for you.\n"
+      "Using a tool (hint, solve, show mines, lowered max. stage) stops the clock: no record is made." },
     { "The three stages",
       "Finding a new cell that can be opened or flagged can be easy or hard. Mines-Perfect has three stages.\n"
       "Stage 1: one uncovered cell is enough to find a new cell. Stage 2: you must combine two open cells. Stage 3: three or more.\n"
@@ -388,20 +408,20 @@ static const HelpPage g_pages[] =
     { "Controls",
       "D-pad: move the cursor from cell to cell.\n"
       "A: open / quick open.    B: flag / quick flag.\n"
-      "X: hint.    Y: new game.    L1: undo.    R1: redo.\n"
+      "X: hint (when the solver is on).    Y: new game.    L1: undo.    R1: redo.\n"
       "L2 / R2: zoom out / in (big boards scroll with the cursor).\n"
-      "START: menu (levels, modes, boards, help tools, save and open, best times).\n"
+      "START: menu (new game, level, board, best times, game configuration, help).\n"
       "SELECT + START: quit." },
-    { "Help tools",
-      "Hint shows one or two open cells that can be used to determine a covered cell (stages 1 and 2), or covered cells that can be opened or flagged (stage 3).\n"
-      "Solve One makes one move. Solve All plays until the chosen stage. Solve Auto does it after each of your actions.\n"
-      "Max. Stage reduces the stage so that help appears earlier. Show Mines reveals all mines.\n"
-      "Undo replays the game without the last move, which can take a moment. Undo All restarts at the beginning.\n"
-      "Using any help switches the timer off and no record is made." },
+    { "Solver tools",
+      "Under START > Game Configuration > Solver tools (they appear when the solver is on):\n"
+      "Hint shows one or two open cells that prove a covered cell (stages 1 and 2), or covered cells that can be opened or flagged (stage 3).\n"
+      "Solve one move plays one certain move. Solve all plays every certain move up to a stage. Auto-solve does that after each of your moves.\n"
+      "Max. stage lowers what counts as too hard, so help comes sooner. Show mines reveals all mines.\n"
+      "Using any tool stops the clock and no record is made. Undo (L1) and redo (R1) are always available; Restart This Board in the main menu undoes everything." },
     { "Sound",
       "To get sound for an event, put a .wav file with its name into the sound folder next to the game:\n"
       "new.wav (new game), open.wav, flag.wav, error.wav, deadend.wav (dead end reached), won.wav, lost.wav.\n"
-      "The sounds can be switched off in Settings." },
+      "The sounds can be switched off in Game Configuration." },
 };
 static const int NPAGES = (int) (sizeof g_pages / sizeof *g_pages);
 
