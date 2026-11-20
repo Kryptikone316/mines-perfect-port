@@ -189,9 +189,9 @@ void g_scale_smooth(Surf& dst, const Surf& src, int ox, int oy, int dw, int dh, 
     std::vector<int> xi(dw), xf(dw);
     for (int x = 0; x < dw; x++)
     {
-        long u = (((long) (2 * x + 1) * sw) << 15) / dw - (1 << 15);       // ((x+0.5)*sw/dw - 0.5) in 16.16
+        int64_t u = (((int64_t) (2 * x + 1) * sw) << 15) / dw - (1 << 15);       // ((x+0.5)*sw/dw - 0.5) in 16.16
         if (u < 0) u = 0;
-        long max_u = (long) (sw - 1) << 16;
+        int64_t max_u = (int64_t) (sw - 1) << 16;
         if (u > max_u) u = max_u;
         xi[x] = (int) (u >> 16); xf[x] = (int) ((u & 0xFFFF) >> 8);          // weight 0..255
     }
@@ -199,9 +199,9 @@ void g_scale_smooth(Surf& dst, const Surf& src, int ox, int oy, int dw, int dh, 
     {
         int dy = oy + y;
         if ((unsigned) dy >= (unsigned) dst.h) continue;
-        long v = (((long) (2 * y + 1) * sh) << 15) / dh - (1 << 15);
+        int64_t v = (((int64_t) (2 * y + 1) * sh) << 15) / dh - (1 << 15);
         if (v < 0) v = 0;
-        long max_v = (long) (sh - 1) << 16;
+        int64_t max_v = (int64_t) (sh - 1) << 16;
         if (v > max_v) v = max_v;
         int y0 = (int) (v >> 16), yf = (int) ((v & 0xFFFF) >> 8), y1 = y0 + 1 < sh ? y0 + 1 : y0;
         const uint16_t* r0 = src.px + (size_t) (sy + y0) * src.w + sx;
