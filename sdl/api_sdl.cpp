@@ -122,6 +122,14 @@ static bool load_bmp(const std::string& fname, Image& out, bool transparent)
     return true;
 }
 
+bool app_load_bmp(const std::string& fname, Argb& out)   // for user background pictures: any size, 8/24/32 bit
+{
+    Image im;
+    if (!load_bmp(fname, im, false)) return false;
+    out = im.px;
+    return true;
+}
+
 class BitmapImpl : public MinesPerfect::Bitmap
 {
 public:

@@ -28,6 +28,10 @@ static bool g_sound = true;
 static bool g_solver = true;            // solver assistance on (modes, hint, tools); off = classic Minesweeper
 static int g_saved_mode = LUCKY;        // what to restore when it is switched on again
 static bool g_saved_murphy = true;
+static Surf g_bg;                       // background picture (640x480), if one is chosen
+static string g_bg_name;                // file name in backgrounds/, empty = classic plain colour
+static bool g_bg_on = false;
+static bool g_scene_dirty = true;
 static int g_zoom_pref = 0;             // 0 = fit the whole board, else 1..4
 static CellNr g_cur = INVALID_CELL;
 static bool g_a_down = false, g_b_down = false;
@@ -53,6 +57,7 @@ static void cfg_load()
         int v;
         if (sscanf(line, "sound=%d", &v) == 1) g_sound = v != 0;
         else if (sscanf(line, "zoom=%d", &v) == 1 && v >= 0 && v <= 5) g_zoom_pref = v;
+        else if (!strncmp(line, "background=", 11)) { g_bg_name = line + 11; while (!g_bg_name.empty() && (g_bg_name[g_bg_name.size() - 1] == '\n' || g_bg_name[g_bg_name.size() - 1] == '\r')) g_bg_name.erase(g_bg_name.size() - 1); }
         else if (sscanf(line, "solver=%d", &v) == 1) g_solver = v != 0;
         else if (sscanf(line, "savedmode=%d", &v) == 1 && v >= 0 && v <= 4) g_saved_mode = v;
         else if (sscanf(line, "savedmurphy=%d", &v) == 1) g_saved_murphy = v != 0;
@@ -64,7 +69,7 @@ static void cfg_save()
 {
     FILE* f = fopen(CFG, "w");
     if (!f) return;
-    fprintf(f, "sound=%d\nzoom=%d\nsolver=%d\nsavedmode=%d\nsavedmurphy=%d\n", g_sound ? 1 : 0, g_zoom_pref, g_solver ? 1 : 0, g_saved_mode, g_saved_murphy ? 1 : 0);
+    fprintf(f, "sound=%d\nzoom=%d\nsolver=%d\nsavedmode=%d\nsavedmurphy=%d\nbackground=%s\n", g_sound ? 1 : 0, g_zoom_pref, g_solver ? 1 : 0, g_saved_mode, g_saved_murphy ? 1 : 0, g_bg_name.c_str());
     fclose(f);
 }
 
@@ -103,6 +108,72 @@ bool ui_frame()
 }
 
 //******************************************************************************
+// backgrounds: backgrounds/*.bg (our 640x480 RGB565 files) and *.bmp (your own pictures, any size, cropped to 4:3)
+//------------------------------------------------------------------------------
+static bool ends_with_ci(const string& s, const char* suf)
+{
+    size_t n = strlen(suf);
+    return s.size() >= n && !strcasecmp(s.c_str() + s.size() - n, suf);
+}
+
+static vector<string> bg_files()
+{
+    vector<string> v;
+    FindFiles(v, "backgrounds/*");
+    vector<string> r;
+    for (size_t i = 0; i < v.size(); i++) if (ends_with_ci(v[i], ".bg") || ends_with_ci(v[i], ".bmp")) r.push_back(v[i]);
+    std::sort(r.begin(), r.end());
+    return r;
+}
+
+static string bg_title(const string& file)     // "03-Sunset_Valley.bg" -> "Sunset Valley"
+{
+    string t = file.substr(0, file.rfind('.'));
+    if (t.size() > 3 && isdigit((unsigned char) t[0]) && isdigit((unsigned char) t[1]) && t[2] == '-') t = t.substr(3);
+    for (size_t i = 0; i < t.size(); i++) if (t[i] == '_') t[i] = ' ';
+    return t;
+}
+
+static bool bg_load(const string& file)         // false: unreadable, the caller keeps the classic colour
+{
+    string path = "backgrounds/" + file;
+    Surf src;
+    if (ends_with_ci(file, ".bg"))
+    {
+        FILE* f = fopen(path.c_str(), "rb");
+        if (!f) return false;
+        unsigned char hd[8];
+        if (fread(hd, 1, 8, f) != 8 || memcmp(hd, "MPBG", 4)) { fclose(f); return false; }
+        int w = hd[4] | (hd[5] << 8), h = hd[6] | (hd[7] << 8);
+        if (w < 16 || h < 16 || w > 4096 || h > 4096) { fclose(f); return false; }
+        src.make(w, h);
+        bool ok = fread(src.px, 2, (size_t) w * h, f) == (size_t) w * h;     // files are little-endian, so is the device
+        fclose(f);
+        if (!ok) return false;
+    }
+    else
+    {
+        Argb a;
+        if (!app_load_bmp(path, a)) return false;
+        src.make(a.w, a.h);
+        for (size_t i = 0; i < a.px.size(); i++) src.px[i] = rgb565(a.px[i]);
+    }
+    if (g_bg.w != SCR_W) g_bg.make(SCR_W, SCR_H);
+    if (src.w == SCR_W && src.h == SCR_H) { memcpy(g_bg.px, src.px, (size_t) SCR_W * SCR_H * 2); return true; }
+    int cx = 0, cy = 0, cw = src.w, ch = src.h;   // cover: crop the middle 4:3 part, scale to the screen
+    if (src.w * 3 > src.h * 4) { cw = src.h * 4 / 3; cx = (src.w - cw) / 2; } else { ch = src.w * 3 / 4; cy = (src.h - ch) / 2; }
+    g_scale_smooth(g_bg, src, 0, 0, SCR_W, SCR_H, cx, cy, cw, ch);
+    return true;
+}
+
+static void bg_apply(const string& file)
+{
+    g_bg_on = !file.empty() && bg_load(file);
+    g_bg_name = g_bg_on ? file : string();
+    g_scene_dirty = true;
+}
+
+//******************************************************************************
 // scene: the original's window scaled onto the screen, with the cursor
 //------------------------------------------------------------------------------
 static BoardCtrl* board_ctrl() { return g_game->getBoardCtrl(); }
@@ -137,14 +208,13 @@ static View view_now()
 static int zoom_int_now() { View v = view_now(); return std::max(1, std::min(4, (int) (v.s + 0.5f))); }
 
 static Surf g_scene;                 // cache of the rendered scene (the pad menus draw over copies of it)
-static bool g_scene_dirty = true;
 static CellNr g_scene_cur = -2;
 static int g_scene_zoom = -1, g_scene_camx = -1, g_scene_camy = -1;
 
 static void render_scene()
 {
     Surf& d = g_scene;
-    g_fill(d, 0, 0, SCR_W, SCR_H, 0x006060);
+    if (g_bg_on) memcpy(d.px, g_bg.px, (size_t) SCR_W * SCR_H * 2); else g_fill(d, 0, 0, SCR_W, SCR_H, 0x006060);
     if (g_win.w <= 0) return;
     View v = view_now();
 
@@ -162,6 +232,7 @@ static void render_scene()
     g_cam_y = std::max(0, std::min(g_cam_y, g_win.h - v.vhc));
 
     int ox = (SCR_W - v.dw) / 2, oy = (SCR_H - v.dh) / 2;
+    if (g_bg_on) g_shade(d, ox + 7, oy + 7, v.dw, v.dh);      // drop shadow so the window lifts off the picture
     if (v.smooth) g_scale_smooth(d, g_win, ox, oy, v.dw, v.dh, g_cam_x, g_cam_y, v.vwc, v.vhc);
     else g_scale_blit(d, g_win, (int) v.s, ox, oy, g_cam_x, g_cam_y, v.vwc, v.vhc);
 
@@ -182,7 +253,11 @@ static void render_scene()
 
     // footer hint when the board leaves room
     if (SCR_H - (oy + v.dh) >= 26)
-        g_text_c(d, font_small(), SCR_W / 2, SCR_H - 22, 0xC0E0E0, g_solver ? "A open   B flag   X hint   Y new   L1 undo   R1 redo   START menu" : "A open   B flag   Y new   L1 undo   R1 redo   START menu");
+    {
+        const char* hint = g_solver ? "A open   B flag   X hint   Y new   L1 undo   R1 redo   START menu" : "A open   B flag   Y new   L1 undo   R1 redo   START menu";
+        if (g_bg_on) g_text_c(d, font_small(), SCR_W / 2 + 1, SCR_H - 21, 0x000000, hint);
+        g_text_c(d, font_small(), SCR_W / 2, SCR_H - 22, 0xE8F4F4, hint);
+    }
 }
 
 void app_draw_scene()
@@ -269,11 +344,11 @@ static void game_show() { g_game->show(); }
 //------------------------------------------------------------------------------
 enum
 {
-    M_RESUME = 1, M_NEW, M_RESTART, M_LEVEL, M_BOARD, M_BEST, M_CONFIG, M_HELP, M_QUIT,
+    M_RESUME = 1, M_NEW, M_RESTART, M_LEVEL, M_BOARD, M_BEST, M_CONFIG, M_SETTINGS, M_HELP, M_QUIT,
     L_BEG = 100, L_INT, L_EXP, L_SELF,
     D_ORIG = 110, D_HINT, D_IMMUNE, D_LUCKY, D_STARTUP, D_MURPHY,
     T_HINT = 120, T_ONE, T_ALL1, T_ALL2, T_ALL3, T_AUTO0, T_AUTO1, T_AUTO2, T_AUTO3, T_MAX1, T_MAX2, T_MAX3, T_MINES,
-    C_SOLVER = 140, C_MODE, C_TOOLS, C_SAVE, C_OPEN, C_SOUND, C_ZOOM,
+    C_SOLVER = 140, C_MODE, C_TOOLS, C_SAVE, C_OPEN, C_SOUND, C_ZOOM, C_BG,
     H_PAGES = 150, H_SOLVER, H_ABOUT,
     B_FIRST = 200
 };
@@ -440,7 +515,7 @@ static void menu_save()
     g_game->save(path);
 }
 
-// Game Configuration: everything that is not "play a level": solver on/off, mode, solver tools, saved games, sound, zoom.
+// Game Configuration: the solver (on/off, mode, tools) and saved games. Looks and sound are under Settings.
 // Returns true when the menus should close (a tool made a move).
 static bool menu_config()
 {
@@ -460,11 +535,6 @@ static bool menu_config()
         }
         it.push_back(MItem("Save game", C_SAVE, -1, true, false, "Saves this game (every move) to logs/<name>.log on the card."));
         it.push_back(MItem("Open game", C_OPEN, -1, true, false, "Replays a saved game and carries on from where it stopped."));
-        it.push_back(MItem(string("Sound: ") + (g_sound ? "On" : "Off"), C_SOUND, g_sound ? 1 : 0, true, false, "Game sound effects."));
-        char b[48];
-        if (g_zoom_pref == 0) snprintf(b, sizeof b, "Zoom: auto"); else if (g_zoom_pref == 5) snprintf(b, sizeof b, "Zoom: fit (smooth)"); else snprintf(b, sizeof b, "Zoom: %dx", g_zoom_pref);
-        it.push_back(MItem(b, C_ZOOM, -1, true, false,
-            "Auto: whole board, in whole steps (sharp) or smoothed when that leaves much unused. L2/R2 zoom out/in during play."));
         int id = ui_menu("Game Configuration", it, sel);
         if (id < 0) return false;
         switch (id)
@@ -474,12 +544,64 @@ static bool menu_config()
         case C_TOOLS: if (menu_tools()) return true; break;
         case C_SAVE: menu_save(); break;
         case C_OPEN: menu_open(); return true;
-        case C_SOUND: g_sound = !g_sound; cfg_save(); break;
-        case C_ZOOM: g_zoom_pref = (g_zoom_pref + 1) % 6; cfg_save(); break;
         }
         // keep the cursor on the same item (the solver rows come and go)
-        sel = id == C_SOLVER ? 0 : id == C_MODE ? 1 : id == C_TOOLS ? 2 : id == C_SAVE ? (g_solver ? 3 : 1) : id == C_OPEN ? (g_solver ? 4 : 2)
-            : id == C_SOUND ? (g_solver ? 5 : 3) : (g_solver ? 6 : 4);
+        sel = id == C_SOLVER ? 0 : id == C_MODE ? 1 : id == C_TOOLS ? 2 : id == C_SAVE ? (g_solver ? 3 : 1) : (g_solver ? 4 : 2);
+        game_show();
+    }
+}
+
+// Background gallery: full-screen preview with the real game window on top, Left/Right to browse, A to choose.
+static void menu_background()
+{
+    vector<string> files = bg_files();
+    int n = (int) files.size() + 1;                 // entry 0 = classic
+    int cur = 0;
+    for (size_t i = 0; i < files.size(); i++) if (files[i] == g_bg_name) cur = (int) i + 1;
+    string orig = g_bg_name;
+    int shown = -1;
+    for (;;)
+    {
+        if (shown != cur) { bg_apply(cur == 0 ? string() : files[cur - 1]); if (cur && !g_bg_on) { /* unreadable file: shows classic */ } shown = cur; }
+        app_draw_scene();
+        string name = cur == 0 ? "Classic" : bg_title(files[cur - 1]);
+        if (cur && !g_bg_on) name += " (cannot be read)";
+        char head[48]; snprintf(head, sizeof head, "%d / %d", cur + 1, n);
+        int w = 520, h = 50, x = (SCR_W - w) / 2, y = SCR_H - h - 6;
+        g_bevel(g_scr, x, y, w, h, true, 0xC0C0C0);
+        string line = string(head) + "   -   " + name;
+        g_text_c(g_scr, font_bold(), x + w / 2, y + 4, 0x000000, line.c_str());
+        g_text(g_scr, font_ui(), x + 12, y + 4, 0x000080, "<");
+        g_text(g_scr, font_ui(), x + w - 12 - g_text_w(font_ui(), ">"), y + 4, 0x000080, ">");
+        g_text_c(g_scr, font_small(), x + w / 2, y + 28, 0x404040, "Left/Right: browse     A: choose     B: cancel");
+        ui_frame();
+        if (g_pad.down & B_LEFT) cur = (cur + n - 1) % n;
+        if (g_pad.down & B_RIGHT) cur = (cur + 1) % n;
+        if (g_pad.down & B_A) { cfg_save(); return; }
+        if (g_pad.down & B_B) { bg_apply(orig); return; }
+    }
+}
+
+static void menu_settings()
+{
+    int sel = 0;
+    for (;;)
+    {
+        vector<MItem> it;
+        string bgname = g_bg_on ? bg_title(g_bg_name) : string("Classic");
+        it.push_back(MItem("Background: " + bgname, C_BG, -1, true, true,
+            "Pictures behind the mine field. Browse the gallery with a live preview; Classic is the plain original look. Your own .bmp pictures in the backgrounds folder show up too."));
+        char b[48];
+        if (g_zoom_pref == 0) snprintf(b, sizeof b, "Zoom: auto"); else if (g_zoom_pref == 5) snprintf(b, sizeof b, "Zoom: fit (smooth)"); else snprintf(b, sizeof b, "Zoom: %dx", g_zoom_pref);
+        it.push_back(MItem(b, C_ZOOM, -1, true, false,
+            "Auto: the whole board, in whole steps (sharp) or smoothed when that leaves much unused. L2/R2 zoom out/in during play."));
+        it.push_back(MItem(string("Sound: ") + (g_sound ? "On" : "Off"), C_SOUND, g_sound ? 1 : 0, true, false, "Game sound effects."));
+        int id = ui_menu("Settings", it, sel);
+        if (id < 0) return;
+        if (id == C_BG) menu_background();
+        else if (id == C_ZOOM) { g_zoom_pref = (g_zoom_pref + 1) % 6; cfg_save(); }
+        else if (id == C_SOUND) { g_sound = !g_sound; cfg_save(); }
+        sel = id == C_BG ? 0 : id == C_ZOOM ? 1 : 2;
         game_show();
     }
 }
@@ -508,7 +630,8 @@ static void menu_main()
         it.push_back(MItem("Level", M_LEVEL, -1, true, true));
         it.push_back(MItem("Board", M_BOARD, -1, true, true, "The shape of the cells: squares, hexagons, triangles and more."));
         it.push_back(MItem("Best Times", M_BEST));
-        it.push_back(MItem("Game Configuration", M_CONFIG, -1, true, true, "Solver on/off, mode and tools, save and open games, sound, zoom."));
+        it.push_back(MItem("Game Configuration", M_CONFIG, -1, true, true, "Solver on/off, mode and tools, save and open games."));
+        it.push_back(MItem("Settings", M_SETTINGS, -1, true, true, "Background picture, zoom and sound."));
         it.push_back(MItem("Help", M_HELP, -1, true, true));
         it.push_back(MItem("Quit", M_QUIT));
         int id = ui_menu("Mines-Perfect", it, sel);
@@ -523,6 +646,7 @@ static void menu_main()
         case M_BOARD: close = menu_board(); break;
         case M_BEST: ui_best_times(g_opt); break;
         case M_CONFIG: close = menu_config(); break;
+        case M_SETTINGS: menu_settings(); break;
         case M_HELP: menu_help(); break;
         case M_QUIT: if (ui_confirm("Quit", "Quit Mines-Perfect?")) app_quit(0); break;
         }
@@ -567,6 +691,8 @@ static void run()
         else if (!strcmp(ui, "save")) menu_save();
         else if (!strcmp(ui, "open")) menu_open();
         else if (!strcmp(ui, "config")) menu_config();
+        else if (!strcmp(ui, "settings")) menu_settings();
+        else if (!strcmp(ui, "bg")) menu_background();
         else if (!strcmp(ui, "tools")) menu_tools();
         else if (!strcmp(ui, "mode")) menu_mode();
         else if (!strcmp(ui, "main")) menu_main();
@@ -656,6 +782,7 @@ int main(int argc, char** argv)
     plat_set_fps(30);
     g_scr.wrap(plat_fb(), SCR_W, SCR_H);
     cfg_load();
+    if (!g_bg_name.empty()) bg_apply(g_bg_name);
     pad_poll();
     try { run(); }
     catch (const Exception& e) { fprintf(stderr, "mines-perfect: %s\n", e.getText().c_str()); ui_message("Error", e.getText().c_str()); }

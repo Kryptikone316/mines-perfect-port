@@ -21,6 +21,8 @@ void app_poll_timer();
 void app_draw_scene();                  // game view on g_scr (no present)
 void app_quit(int code) __attribute__((noreturn));
 
+bool app_load_bmp(const std::string& fname, Argb& out);   // api_sdl.cpp
+
 // input (main.cpp). pad_poll() once per frame; `down` = pressed this frame (d-pad also auto-repeats), `held` = still down
 struct PadState { unsigned held, down, up; };
 extern PadState g_pad;

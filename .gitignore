@@ -2,3 +2,4 @@ build-*/
 work/
 package/
 *.o
+assets/backgrounds/

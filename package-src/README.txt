@@ -37,7 +37,7 @@ MENU (START)
              Solver tools (solver on) - Hint, solve one move, solve all (to stage 1/2/3),
                                  auto-solve, max. stage, show mines
              Save game / Open game - replays/saves the whole game as logs/<name>.log
-             Sound On/Off, Zoom (auto, fit smooth, 1x..4x)
+  Settings   Background (gallery with live preview), Zoom (auto, fit smooth, 1x..4x), Sound On/Off
   Help       How to play, What is the solver?, About
   Quit
 
@@ -55,9 +55,20 @@ Using a tool (hint, solve, show mines, max. stage) stops the clock: no record is
 the solver off puts the mode back to Original and clears the tools; switching it on again restores
 your previous mode.
 
+BACKGROUNDS
+-----------
+START > Settings > Background shows the gallery with the real game window on top: Left/Right to
+browse, A to choose, B to cancel. "Classic" is the plain original look. Six pictures are included
+(backgrounds/*.bg).
+Your own pictures: put a .bmp file (uncompressed 24-bit is safest; 8 and 32 bit also work) into the
+backgrounds folder. Best is exactly 640 x 480; any other size is cropped from the middle to 4:3 and
+scaled to 640 x 480. The file name is shown in the gallery (underscores become spaces; a leading
+"03-" is only for ordering). Pictures with big calm areas and not too much contrast work best
+behind a board. Delete a file to remove it from the gallery.
+
 NOTES
 -----
- * Your records, the level, mode and board are kept in mineperf.ini in this folder; sound, zoom and the
+ * Your records, the level, mode and board are kept in mineperf.ini in this folder; sound, zoom, background and the
    solver switch in minesperfect.cfg; saved games in logs/. Delete mineperf.ini to start fresh.
  * The seven sound effects in sound/ (new, open, flag, error, deadend, won, lost) were made
    for this port. See "ORIGINAL GAME SOUNDS" below to use the original game's instead.
@@ -83,4 +94,4 @@ It is not included here because the download does not state its licence. If you 
   4. Start the game. Any single sound you leave out simply keeps the port's own.
 
 You can also use any .wav files of your own the same way (8 or 16 bit, mono or stereo, any sample
-rate). To turn all sounds off: START > Game Configuration > Sound.
+rate). To turn all sounds off: START > Settings > Sound.

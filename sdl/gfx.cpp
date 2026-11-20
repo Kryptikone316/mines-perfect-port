@@ -228,3 +228,17 @@ void g_scale_smooth(Surf& dst, const Surf& src, int ox, int oy, int dw, int dh, 
         }
     }
 }
+
+void g_shade(Surf& s, int x, int y, int w, int h)
+{
+    int x1 = x + w, y1 = y + h;
+    if (x < 0) x = 0;
+    if (y < 0) y = 0;
+    if (x1 > s.w) x1 = s.w;
+    if (y1 > s.h) y1 = s.h;
+    for (int j = y; j < y1; j++)
+    {
+        uint16_t* d = s.px + (size_t) j * s.w;
+        for (int i = x; i < x1; i++) d[i] = (d[i] >> 1) & 0x7BEF;
+    }
+}

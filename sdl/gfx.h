@@ -42,6 +42,7 @@ void g_line(Surf& s, int x0, int y0, int x1, int y1, uint32_t rgb);
 void g_blit_key(Surf& s, const Argb& a, int x, int y);                       // alpha >= 128 is drawn
 void g_scale_blit(Surf& dst, const Surf& src, int zoom, int ox, int oy, int sx, int sy, int sw, int sh);   // nearest, integer zoom
 void g_scale_smooth(Surf& dst, const Surf& src, int ox, int oy, int dw, int dh, int sx, int sy, int sw, int sh);   // bilinear, any size
+void g_shade(Surf& s, int x, int y, int w, int h);   // darkens a rectangle to half brightness (drop shadows)
 void g_bevel(Surf& s, int x, int y, int w, int h, bool raised, uint32_t face);   // Windows-style 2 px bevel, filled with face (0xFFFFFFFF = no fill)
 void g_text(Surf& s, FontP f, int x, int y, uint32_t rgb, const char* str);
 void g_text_c(Surf& s, FontP f, int cx, int y, uint32_t rgb, const char* str);
