@@ -427,7 +427,7 @@ static bool menu_level()
     it.push_back(MItem("Beginner", L_BEG, o->getLevelNr() == BEGINNER));
     it.push_back(MItem("Intermediate", L_INT, o->getLevelNr() == INTERMEDIATE));
     it.push_back(MItem("Expert", L_EXP, o->getLevelNr() == EXPERT));
-    it.push_back(MItem("Selfdefined...", L_SELF, o->getLevelNr() == USER_DEFINED));
+    it.push_back(MItem("Custom size...", L_SELF, o->getLevelNr() == USER_DEFINED, true, false, "Choose your own number of rows, columns and mines."));
     int id = ui_menu("Level", it, o->getLevelNr());
     if (id < 0) return false;
     if (id == L_SELF)
@@ -460,18 +460,18 @@ static void menu_mode()
         Options* o = g_opt;
         vector<MItem> it;
         it.push_back(MItem("Original", D_ORIG, o->getModus() == ORIGINAL, true, false,
-            "Classic rules. When you are stuck you must guess, and a wrong guess ends the game."));
+            "Classic Minesweeper. If you have to guess and guess wrong, you lose."));
         it.push_back(MItem("Hint", D_HINT, o->getModus() == HINTS, true, false,
-            "When you are stuck, the solver opens or flags one certain cell for you."));
+            "When you are stuck, the game opens or flags one safe cell for you."));
         it.push_back(MItem("Immune", D_IMMUNE, o->getModus() == IMMUNE, true, false,
-            "Your next move is protected: if you open a mine while guessing, the game goes on."));
+            "Your next move is protected: if you open a mine while guessing, the game simply carries on."));
         it.push_back(MItem("Lucky", D_LUCKY, o->getModus() == LUCKY, o->getMaxStage() == MAX_STAGE, false,
-            "When you are stuck, a guess is always safe: the solver moves the mines to fit. (Needs max. stage 3.) This is the default."));
+            "When you have to guess, the guess is always safe: the game quietly moves the mines to fit what you can see. This is the default. Not available while Max. stage is lowered."));
         it.push_back(MItem("Startup", D_STARTUP, o->getModus() == STARTUP, true, false,
-            "A new game starts with enough cells opened and flagged that you never need to guess."));
+            "The game starts with enough cells already open and flagged that you never have to guess."));
         it.push_back(MItem("Murphy's Law", D_MURPHY, o->getMurphysLaw(), true, false,
-            "The opposite of Lucky: any cell that could hold a mine does. For people who want a harder game."));
-        int id = ui_menu("Mode: what happens when you must guess", it, sel);
+            "The opposite of Lucky: whenever a cell could hide a mine, it does. A real challenge."));
+        int id = ui_menu("Mode: when you have to guess", it, sel);
         if (id < 0) return;
         if (id == D_MURPHY) { g_game->setMurphysLaw(!o->getMurphysLaw()); sel = 5; game_show(); continue; }
         g_game->changeModus(id == D_ORIG ? ORIGINAL : id == D_HINT ? HINTS : id == D_IMMUNE ? IMMUNE : id == D_LUCKY ? LUCKY : STARTUP);
@@ -488,28 +488,28 @@ static bool menu_tools()
         Options* o = g_opt;
         vector<MItem> it;
         it.push_back(MItem("Hint", T_HINT, -1, true, false,
-            "Marks cells to look at: either open numbers that prove a covered cell, or covered cells you can open or flag."));
-        it.push_back(MItem("Solve one move", T_ONE, -1, true, false, "The solver makes one certain move for you."));
+            "Marks cells worth a look: numbers that prove something, or covered cells you can safely open or flag."));
+        it.push_back(MItem("Solve one move", T_ONE, -1, true, false, "Makes one sure move for you."));
         it.push_back(MItem("Solve all, up to stage 1", T_ALL1, -1, true, false,
-            "Plays every certain move that needs only a single open cell (stage 1: the easiest)."));
+            "Plays every sure move that is easy: a single number is enough to see it (stage 1)."));
         it.push_back(MItem("Solve all, up to stage 2", T_ALL2, -1, true, false,
-            "Plays every certain move that needs one or two open cells together."));
+            "Plays every sure move that needs one or two numbers together (stage 2)."));
         it.push_back(MItem("Solve all, up to stage 3", T_ALL3, -1, true, false,
-            "Plays every certain move there is, however hard. The board is solved as far as it can be without guessing."));
+            "Plays every sure move there is, however hard (stage 3). It stops when only a guess is left."));
         it.push_back(MItem("Auto-solve: off", T_AUTO0, o->getAutoStage() == 0, true, false, "You make all the moves yourself."));
         it.push_back(MItem("Auto-solve: stage 1", T_AUTO1, o->getAutoStage() == 1, true, false,
-            "After each of your moves, the easiest certain moves are played for you."));
+            "After each move you make, the game also plays all the easy sure moves (stage 1)."));
         it.push_back(MItem("Auto-solve: stage 2", T_AUTO2, o->getAutoStage() == 2, true, false,
-            "After each of your moves, certain moves up to stage 2 are played for you."));
+            "After each move you make, the game also plays the sure moves up to stage 2."));
         it.push_back(MItem("Auto-solve: stage 3", T_AUTO3, o->getAutoStage() == 3, true, false,
-            "After each of your moves, every certain move is played: the game nearly plays itself."));
+            "After each move you make, the game also plays every sure move. It nearly plays itself."));
         bool ms = o->getModus() != LUCKY;
         it.push_back(MItem("Max. stage 1", T_MAX1, o->getMaxStage() == 1, ms, false,
-            "Treats anything harder than stage 1 as a dead end, so help (modes Hint/Immune/Startup) comes sooner. Not with Lucky."));
-        it.push_back(MItem("Max. stage 2", T_MAX2, o->getMaxStage() == 2, ms, false, "Same, for anything harder than stage 2. Not with Lucky."));
-        it.push_back(MItem("Max. stage 3", T_MAX3, o->getMaxStage() == 3, ms, false, "Normal: nothing is treated as too hard."));
+            "Anything harder than stage 1 counts as \"you must guess\", so your Mode helps you sooner. Not available in Lucky mode."));
+        it.push_back(MItem("Max. stage 2", T_MAX2, o->getMaxStage() == 2, ms, false, "Anything harder than stage 2 counts as \"you must guess\". Not available in Lucky mode."));
+        it.push_back(MItem("Max. stage 3", T_MAX3, o->getMaxStage() == 3, ms, false, "The normal setting: no sure move is too hard to count."));
         it.push_back(MItem("Show mines", T_MINES, o->getShowMines(), true, false, "Reveals where all the mines are."));
-        int id = ui_menu("Solver tools (stop the clock: no record)", it, sel);
+        int id = ui_menu("Solver tools (using them: no record)", it, sel);
         if (id < 0) return false;
         switch (id)
         {
@@ -555,17 +555,17 @@ static bool menu_config()
     {
         vector<MItem> it;
         it.push_back(MItem(string("Solver: ") + (g_solver ? "On" : "Off"), C_SOLVER, g_solver ? 1 : 0, true, false,
-            g_solver ? "Mines-Perfect's solver can protect you from guesses and help with hints. Switch it off to play classic Minesweeper, with no help at all."
-                     : "Classic Minesweeper: no protection, no hints, no tools. Switch it on for the solver's modes and tools (it remembers your settings)."));
+            g_solver ? "The solver can protect you from guessing and give hints. Switch it off to play plain classic Minesweeper with no help at all."
+                     : "Plain Minesweeper for now: no hints, no protection. Switch the solver on to get the modes and tools back (your earlier settings return)."));
         if (g_solver)
         {
             it.push_back(MItem(string("Mode: ") + mode_name(g_opt->getModus()) + (g_opt->getMurphysLaw() ? " + Murphy" : ""), C_MODE, -1, true, true,
-                "What the solver does when only a guess is left: protect you, help, or leave you alone."));
+                "How the game treats you when only a guess is left."));
             it.push_back(MItem("Solver tools", C_TOOLS, -1, true, true,
-                "Hint, solve a move or the whole board, auto-solve, show mines. Using them stops the clock: no record is made."));
+                "Hints and helpers. Using them stops the clock, so no record is made."));
         }
-        it.push_back(MItem("Save game", C_SAVE, -1, true, false, "Saves this game (every move) to logs/<name>.log on the card."));
-        it.push_back(MItem("Open game", C_OPEN, -1, true, false, "Replays a saved game and carries on from where it stopped."));
+        it.push_back(MItem("Save game", C_SAVE, -1, true, false, "Saves this game, move by move, so you can replay or continue it later."));
+        it.push_back(MItem("Open game", C_OPEN, -1, true, false, "Loads a saved game and carries on where it stopped."));
         int id = ui_menu("Game Configuration", it, sel);
         if (id < 0) return false;
         switch (id)
@@ -622,11 +622,11 @@ static void menu_settings()
         vector<MItem> it;
         string bgname = bg_title_of(g_bg_name);
         it.push_back(MItem("Background: " + bgname, C_BG, -1, true, true,
-            "The colour or picture behind the mine field, with a live preview. Classic is the plain original look. Pictures from the optional art pack, or your own .bmp files, appear after the colours when they are in the backgrounds folder."));
+            "The colour or picture behind the board, with a live preview. Pictures from the optional art pack, or your own .bmp files, join the list when they are in the backgrounds folder."));
         char b[48];
         if (g_zoom_pref == 0) snprintf(b, sizeof b, "Zoom: auto"); else if (g_zoom_pref == 5) snprintf(b, sizeof b, "Zoom: fit (smooth)"); else snprintf(b, sizeof b, "Zoom: %dx", g_zoom_pref);
         it.push_back(MItem(b, C_ZOOM, -1, true, false,
-            "Auto: the whole board, in whole steps (sharp) or smoothed when that leaves much unused. L2/R2 zoom out/in during play."));
+            "Auto fits the whole board on screen. You can also choose a fixed size. L2/R2 change it during play."));
         it.push_back(MItem(string("Sound: ") + (g_sound ? "On" : "Off"), C_SOUND, g_sound ? 1 : 0, true, false, "Game sound effects."));
         int id = ui_menu("Settings", it, sel);
         if (id < 0) return;
@@ -658,11 +658,11 @@ static void menu_main()
         vector<MItem> it;
         it.push_back(MItem("Resume", M_RESUME));
         it.push_back(MItem("New Game", M_NEW));
-        it.push_back(MItem("Restart This Board", M_RESTART, -1, true, false, "Plays the same board again from the start (undoes every move)."));
+        it.push_back(MItem("Restart This Board", M_RESTART, -1, true, false, "Play the same board again from the beginning."));
         it.push_back(MItem("Level", M_LEVEL, -1, true, true));
         it.push_back(MItem("Board", M_BOARD, -1, true, true, "The shape of the cells: squares, hexagons, triangles and more."));
         it.push_back(MItem("Best Times", M_BEST));
-        it.push_back(MItem("Game Configuration", M_CONFIG, -1, true, true, "Solver on/off, mode and tools, save and open games."));
+        it.push_back(MItem("Game Configuration", M_CONFIG, -1, true, true, "Solver on or off, mode, solver tools, save and open games."));
         it.push_back(MItem("Settings", M_SETTINGS, -1, true, true, "Background picture, zoom and sound."));
         it.push_back(MItem("Help", M_HELP, -1, true, true));
         it.push_back(MItem("Quit", M_QUIT));
@@ -843,7 +843,7 @@ static void run()
         }
         catch (const Exception& e)
         {
-            ui_message("Error", e.getText().c_str());
+            ui_message("Something went wrong", (string("Sorry, that did not work:\n") + e.getText() + "\n\nThe game carries on. If this keeps happening, please report it and include log.txt from the game folder.").c_str());
         }
     }
 }

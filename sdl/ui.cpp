@@ -242,14 +242,14 @@ bool ui_selfdefined(Level& lvl)
     for (;;)
     {
         bool show[NROW] = { true, true, l.deep > 0, true, l.num_wholes > -1, true, true };
-        const char* names[NROW] = { "Rows", "Columns", "Pages", "Mines", "Wholes", "OK", "Cancel" };
+        const char* names[NROW] = { "Rows", "Columns", "Pages", "Mines", "Holes", "OK", "Cancel" };
         int vals[NROW] = { l.height, l.width, l.deep, l.num_mines, l.num_wholes, 0, 0 };
         int w = 420, h = 34 + 14;
         for (int i = 0; i < NROW; i++) if (show[i]) h += 32;
         h += 40;
         int x = (SCR_W - w) / 2, y = (SCR_H - h) / 2;
         scene();
-        panel(x, y, w, h, "Selfdefined board");
+        panel(x, y, w, h, "Custom board");
         int ry = y + 40;
         for (int i = 0; i < NROW; i++)
         {
@@ -265,7 +265,7 @@ bool ui_selfdefined(Level& lvl)
             }
             ry += 32;
         }
-        g_text_c(g_scr, font_small(), x + w / 2, y + h - 26, 0x404040, "Left/Right: +-1    L1/R1: +-10");
+        g_text_c(g_scr, font_small(), x + w / 2, y + h - 26, 0x404040, "Left/Right: change by 1     L1/R1: change by 10");
         ui_frame();
         int d = 0;
         if (g_pad.down & B_LEFT) d = -1;
@@ -379,49 +379,52 @@ int ui_pick_file(const char* title, const vector<string>& names)
 struct HelpPage { const char* title; const char* text; };
 static const HelpPage g_pages[] =
 {
-    { "For absolute beginners",
-      "There are a number of mines hidden on the board. If you open a cell with a mine, the game is over. The goal is to uncover all cells without a mine as fast as possible.\n"
-      "Open cells tell you how many neighbouring cells contain a mine. By analysing the open cells you can draw conclusions about covered cells." },
-    { "Opening and flagging",
-      "A (left button) opens a covered cell. B (right button) flags it.\n"
-      "On an uncovered cell they act on all covered neighbours: quick opening and quick flagging.\n"
-      "Quick opening works when all mines around the cell are found, i.e. its number equals the number of flagged neighbours.\n"
-      "Quick flagging works when all possible cells are open, i.e. its number equals the number of covered neighbours.\n"
-      "If the condition is not fulfilled, nothing happens." },
-    { "The solver",
-      "Mines-Perfect's special feature is a solver that reads the board like an expert player. It can tell, for every position, whether a covered cell is certainly safe, certainly a mine, or whether you can only guess.\n"
-      "You can leave it entirely off (START > Game Configuration > Solver: Off) and play classic Minesweeper.\n"
-      "With the solver on, the smiley shows how hard the next certain move is (the three stages), the Mode decides what happens when only a guess is left, and the Solver tools can show or make certain moves for you.\n"
-      "Using a tool (hint, solve, show mines, lowered max. stage) stops the clock: no record is made." },
-    { "The three stages",
-      "Finding a new cell that can be opened or flagged can be easy or hard. Mines-Perfect has three stages.\n"
-      "Stage 1: one uncovered cell is enough to find a new cell. Stage 2: you must combine two open cells. Stage 3: three or more.\n"
-      "The simplest group on the board decides the stage of the board; the smiley shows it by its eyes.\n"
-      "A smiley with a worried or sunglass face means that the state of one or more cells cannot be determined (dead end). What happens then depends on the mode." },
-    { "Modes of the game",
-      "Original: as the classic game, no protection.\n"
-      "Hint: the program opens or flags a cell for you when you are stuck.\n"
-      "Immune: your next step is protected; if you open a mine, the game goes on.\n"
-      "Lucky: you cannot open a cell with a mine at a dead end (the solver moves the mines, numbers stay valid). Needs max. stage 3.\n"
-      "Start-up: before the game starts it opens and flags enough cells so that no dead end can appear.\n"
-      "Murphy's Law is the counterpart of Lucky: if a cell can contain a mine, it will." },
+    { "How to play",
+      "Mines are hidden under the grey cells. Open a cell with a mine and the game is over. Open every cell that has no mine and you win - the faster, the better.\n"
+      "A number on an opened cell tells you how many of the cells touching it hide a mine. Use the numbers to work out where the mines are, and put a flag on each one.\n"
+      "The little clock on the right counts seconds, the counter on the left shows how many mines are still unflagged." },
     { "Controls",
-      "D-pad: move the cursor from cell to cell.\n"
-      "A: open / quick open.    B: flag / quick flag.\n"
-      "X: hint (when the solver is on).    Y: new game.    L1: undo.    R1: redo.\n"
-      "L2 / R2: zoom out / in (big boards scroll with the cursor).\n"
-      "START: menu (new game, level, board, best times, game configuration, help).\n"
-      "SELECT + START: quit." },
+      "D-pad: move the yellow cursor.\n"
+      "A: open the cell.     B: put a flag on it.\n"
+      "X: hint (when the solver is on).     Y: new game.\n"
+      "L1: undo a move.     R1: redo it.\n"
+      "L2 / R2: zoom out / in. Big boards scroll with the cursor.\n"
+      "START: the menu.     SELECT + START: quit." },
+    { "Opening and flagging",
+      "Press A on a covered cell to open it, B to flag it.\n"
+      "Both buttons also work as shortcuts on a number that is already open:\n"
+      "A opens all the covered cells around it in one go - use it when you have already flagged as many mines around the number as it says.\n"
+      "B flags all the covered cells around it in one go - use it when the number says that every one of them is a mine.\n"
+      "If the number does not fit, nothing happens." },
+    { "What is the solver?",
+      "Mines-Perfect has a built-in solver: a player that never gets it wrong. It reads the numbers and knows, for every covered cell, whether it is certainly safe, certainly a mine, or cannot be told.\n"
+      "You can ignore it completely: START > Game Configuration > Solver: Off gives you plain classic Minesweeper.\n"
+      "With the solver on, it can warn you (the smiley), help you (hints and tools) and look after you when you would otherwise have to guess (the Mode).\n"
+      "Using a hint or a tool stops the clock, so no record is made." },
+    { "The smiley",
+      "The smiley shows how hard the easiest safe move on the board is right now:\n"
+      "Eye patch: easy. One opened number is enough to find a safe move.\n"
+      "Smile with grey corners: medium. Two numbers together tell you something.\n"
+      "Monocle: hard. You need three or more numbers together.\n"
+      "Plain smile during a game: no sure move is left, you would have to guess - but your Mode looks after you.\n"
+      "Toothy grin: no sure move is left and nothing protects you.\n"
+      "Sunglasses: you won.     Crossed eyes: you lost." },
+    { "Modes",
+      "A mode decides what happens when only a guess is left. Pick it under START > Game Configuration > Mode.\n"
+      "Original: classic. A wrong guess ends the game.\n"
+      "Hint: the game opens or flags one safe cell for you.\n"
+      "Immune: your next move is protected; open a mine and the game simply carries on.\n"
+      "Lucky (the default): a guess is always safe. The game quietly moves the mines to fit what you can see.\n"
+      "Startup: the game starts with enough cells open and flagged that you never have to guess.\n"
+      "Murphy's Law: the opposite of Lucky - if a cell could hide a mine, it does." },
     { "Solver tools",
-      "Under START > Game Configuration > Solver tools (they appear when the solver is on):\n"
-      "Hint shows one or two open cells that prove a covered cell (stages 1 and 2), or covered cells that can be opened or flagged (stage 3).\n"
-      "Solve one move plays one certain move. Solve all plays every certain move up to a stage. Auto-solve does that after each of your moves.\n"
-      "Max. stage lowers what counts as too hard, so help comes sooner. Show mines reveals all mines.\n"
-      "Using any tool stops the clock and no record is made. Undo (L1) and redo (R1) are always available; Restart This Board in the main menu undoes everything." },
+      "START > Game Configuration > Solver tools (only when the solver is on):\n"
+      "Hint shows cells worth a look. Solve one move makes one sure move for you. Solve all plays every sure move up to a difficulty. Auto-solve does that after each move you make.\n"
+      "Max. stage limits how hard a move you are expected to work out yourself, so the Mode helps you sooner. Show mines reveals every mine.\n"
+      "Any tool stops the clock and no record is made. Undo, redo and Restart This Board are always available." },
     { "Sound",
-      "To get sound for an event, put a .wav file with its name into the sound folder next to the game:\n"
-      "new.wav (new game), open.wav, flag.wav, error.wav, deadend.wav (dead end reached), won.wav, lost.wav.\n"
-      "The sounds can be switched off in Game Configuration." },
+      "The game plays a sound for: a new game, opening, flagging, a dead end, an error, winning and losing. Switch sound off under START > Settings > Sound.\n"
+      "You can swap in your own .wav files: put files named new.wav, open.wav, flag.wav, error.wav, deadend.wav, won.wav and lost.wav into the sound folder of the game on the card." },
 };
 static const int NPAGES = (int) (sizeof g_pages / sizeof *g_pages);
 
@@ -430,14 +433,21 @@ void ui_help_pages(int first)
     int pg = first;
     for (;;)
     {
-        vector<string> lines;
-        wrap_text(g_pages[pg].text, font_ui(), 556, lines);
+        // one paragraph per line of the text, a little gap between paragraphs
+        vector<string> paras;
+        { string cur; for (const char* q = g_pages[pg].text;; q++) { if (*q == '\n' || *q == 0) { paras.push_back(cur); cur.clear(); if (!*q) break; } else cur += *q; } }
         scene();
         int w = 600, h = 440, x = (SCR_W - w) / 2, y = (SCR_H - h) / 2;
         panel(x, y, w, h, g_pages[pg].title);
-        int lh = g_font_h(font_ui()) + 1;
-        for (size_t i = 0; i < lines.size(); i++)
-            if (40 + (int) (i + 1) * lh < h - 34) g_text(g_scr, font_ui(), x + 22, y + 40 + (int) i * lh, BLACK, lines[i].c_str());
+        int lh = g_font_h(font_ui()) + 1, ty = y + 42;
+        for (size_t pi = 0; pi < paras.size(); pi++)
+        {
+            vector<string> lines;
+            wrap_text(paras[pi].c_str(), font_ui(), 556, lines);
+            for (size_t i = 0; i < lines.size(); i++, ty += lh)
+                if (ty + lh < y + h - 34) g_text(g_scr, font_ui(), x + 22, ty, BLACK, lines[i].c_str());
+            ty += 7;
+        }
         char foot[64]; snprintf(foot, sizeof foot, "Left/Right: page %d of %d      B: close", pg + 1, NPAGES);
         g_text_c(g_scr, font_small(), x + w / 2, y + h - 26, 0x404040, foot);
         ui_frame();
@@ -451,10 +461,11 @@ void ui_about()
 {
     char ver[16];
     snprintf(ver, sizeof ver, "%d.%d.%d", Glob::VERSION / 100 % 10, Glob::VERSION / 10 % 10, Glob::VERSION % 10);
-    string t = string("Mines-Perfect\nVersion ") + ver + "\n\n"
-        "Copyright (c) 1995-2003, Christian Czepluch\n"
-        "This program is distributed under the terms of the GNU General Public License, version 2 or later.\n\n"
-        "SF3500 port: the original rules, solver and board code, with a new SDL2 front end.\n"
-        "www.czeppi.de   sourceforge.net/projects/mines-perfect";
+    string t = string("Mines-Perfect, version ") + ver + "\n"
+        "A Minesweeper with a solver, by Christian Czepluch (c) 1995-2003.\n"
+        "Free software under the GNU General Public License, version 2 or later.\n\n"
+        "This handheld version keeps the original game and adds new controls, menus and settings.\n\n"
+        "www.czeppi.de\n"
+        "sourceforge.net/projects/mines-perfect";
     ui_message("About", t.c_str());
 }

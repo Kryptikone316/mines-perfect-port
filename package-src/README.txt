@@ -1,100 +1,149 @@
 MINES-PERFECT  -  for the Datafrog SF3500
 =========================================
 
-A Minesweeper clone by Christian Czepluch (czeppi.de, version 1.4.0, GPL) with a very clever
-solver: it classifies every position into three stages of difficulty, shows what it finds
-with the smiley, and can protect you from dead ends (guessing). Besides the square board it
-plays on hexagons, triangles and a 3D grid, and it reads extra boards (Parquet, Pentagon,
-Triangle14 are included). This is the original game code with a new SDL2 front end for the
-handheld.
+Minesweeper, with a twist. Mines are hidden under a grid of cells; open every cell that has no mine
+and flag the ones that do. The numbers tell you how many mines touch a cell.
+
+What makes Mines-Perfect special is its SOLVER: a built-in player that never gets it wrong. It can
+tell you how hard the next move is, give you hints, and even protect you when you would have to
+guess. If you just want classic Minesweeper, switch it off (START > Game Configuration > Solver).
+
+The game is also not limited to squares: it plays on hexagons, triangles, a 3D grid and more.
+
+This is the original Mines-Perfect 1.4.0 by Christian Czepluch (www.czeppi.de), brought to the
+handheld with new controls, menus and settings.
+
+
+QUICK START
+-----------
+Pick Mines-Perfect from Games > Ports. A beginner board is waiting. Press A on a cell to open it.
+Press B to flag a cell you think hides a mine. Open all the safe cells to win.
+Press START for the menu, SELECT + START to quit.
+
 
 CONTROLS
 --------
-  D-pad        move the yellow cursor from cell to cell (hold to repeat)
-  A            open the cell. On an opened cell: quick open (see below)
-  B            flag the cell. On an opened cell: quick flag
-  X            hint (solver on): shows cells that can be used / opened / flagged
-  Y            new game
-  L1 / R1      undo / redo
-  L2 / R2      zoom out / in (big boards scroll with the cursor)
-  START        menu
-  SELECT + START   leave the game
+  D-pad            move the yellow cursor (hold to repeat)
+  A                open the cell
+  B                flag the cell
+  X                hint (when the solver is on)
+  Y                new game
+  L1 / R1          undo / redo a move
+  L2 / R2          zoom out / in (big boards scroll with the cursor)
+  START            menu
+  SELECT + START   quit
 
-Quick opening: on an opened number whose mines are all flagged, A opens all the covered
-neighbours. Quick flagging: on a number whose covered neighbours must all be mines, B flags
-them. Holding A while moving shows what a click would touch, like the mouse version.
+Shortcuts on a number that is already open:
+  A   opens all the covered cells around it - when you have already flagged as many mines around
+      the number as it says.
+  B   flags all the covered cells around it - when the number says that every one of them is a mine.
+If the number does not fit, nothing happens.
 
-MENU (START)
-------------
-  Resume, New Game, Restart This Board (the same board again from the start)
-  Level      Beginner, Intermediate, Expert, Selfdefined (rows, columns, mines)
-  Board      Square, Hexagon, Triangle, 3d-Grid, Parquet, Pentagon, Triangle14
-  Best Times the three records of every board (X deletes one)
-  Game Configuration
-             Solver: On / Off  - see below. Off = plain classic Minesweeper.
-             Mode (solver on)  - what happens when you must guess: Original, Hint, Immune,
-                                 Lucky (default), Startup, and Murphy's Law
-             Solver tools (solver on) - Hint, solve one move, solve all (to stage 1/2/3),
-                                 auto-solve, max. stage, show mines
-             Save game / Open game - replays/saves the whole game as logs/<name>.log
-  Settings   Background (colours, optional art pack, with live preview), Zoom (auto, fit smooth, 1x..4x), Sound On/Off
-  Help       How to play, What is the solver?, About
-  Quit
-
-Every entry in the Game Configuration menus has a short description at the bottom while it is selected.
 
 THE SOLVER
 ----------
-Mines-Perfect's special feature is a solver that reads the board like an expert. It knows for every
-position whether a covered cell is certainly safe, certainly a mine, or whether only a guess is left.
- * Solver: Off  - classic Minesweeper. No hints, no protection; you can lose on a guess.
- * Solver: On   - the Mode decides what happens when you must guess (default Lucky: the guess is
-                  safe), and X / Solver tools can show or make certain moves for you. The smiley
-                  shows how hard the next certain move is (three stages).
-Using a tool (hint, solve, show mines, max. stage) stops the clock: no record is made. Switching
-the solver off puts the mode back to Original and clears the tools; switching it on again restores
-your previous mode.
+The solver reads the numbers like an expert and knows, for every covered cell, whether it is
+certainly safe, certainly a mine, or cannot be told. You decide how much of it you want:
 
-BACKGROUNDS
------------
-START > Settings > Background shows the choices with the real game window on top: Left/Right to
-browse, A to choose, B to cancel. Classic is the plain original look; six flat, matte, neutral
-colours (Charcoal, Slate, Dusty Blue, Sage, Stone, Sand) are built in.
-Optional art pack: a separate download (MinesPerfectArtPack.zip) with six pictures. Copy its
-"backgrounds" folder into this port's folder (roms/ports/minesperfect/) and they appear in the
-gallery after the colours. The pictures are fan art, free for use with this port only, not for
-commercial use, not to be used anywhere else (the pack carries its own LICENCE.txt).
-Your own pictures: put a .bmp file (uncompressed 24-bit is safest; 8 and 32 bit also work) into the
-backgrounds folder (make it if it is not there). Best is exactly 640 x 480; any other size is cropped
-from the middle to 4:3 and scaled to 640 x 480. The file name is shown in the gallery (underscores
-become spaces; a leading "03-" is only for ordering). Delete a file to remove it from the gallery.
+  Solver: Off   Plain classic Minesweeper. No hints, no protection. A wrong guess ends the game.
+  Solver: On    The smiley rates the next move, X gives hints, and the Mode (below) looks after you
+                when only a guess is left.
 
-NOTES
+THE SMILEY (solver on) shows how hard the easiest safe move is right now:
+  eye patch ........ easy: one open number is enough to find a safe move (stage 1)
+  grey-cornered smile  medium: two numbers together tell you something (stage 2)
+  monocle .......... hard: you need three or more numbers together (stage 3)
+  plain smile in a running game .. no sure move is left, you would have to guess - your Mode
+                     looks after you
+  toothy grin ...... no sure move is left and nothing protects you
+  sunglasses ....... you won          crossed eyes ... you lost
+
+MODES decide what happens when only a guess is left (START > Game Configuration > Mode):
+  Original   classic: a wrong guess ends the game
+  Hint       the game opens or flags one safe cell for you
+  Immune     your next move is protected: open a mine and the game simply carries on
+  Lucky      a guess is always safe: the game quietly moves the mines to fit what you can see
+             (the default)
+  Startup    the game starts with enough cells open and flagged that you never have to guess
+  Murphy's Law (an extra switch)   the opposite of Lucky: if a cell could hide a mine, it does
+
+SOLVER TOOLS (START > Game Configuration > Solver tools): hint, solve one move, solve everything up
+to a difficulty, auto-solve after each of your moves, a limit on how hard a move you are expected
+to work out yourself, and show mines.
+Using any tool stops the clock, so no record is made. Switching the solver off clears the tools and
+sets the mode to Original; switching it on again brings your earlier settings back.
+
+
+MENUS (START)
+-------------
+  Resume
+  New Game
+  Restart This Board    play the same board again from the beginning
+  Level                 Beginner, Intermediate, Expert, or Custom size (rows, columns, mines)
+  Board                 the shape of the cells: Square, Hexagon, Triangle, 3d-Grid, Parquet,
+                        Pentagon, Triangle14
+  Best Times            the three records of every board (X deletes one)
+  Game Configuration    Solver on/off, Mode, Solver tools, Save game, Open game
+  Settings              Background, Zoom, Sound
+  Help                  how to play, what the solver is, about
+  Quit
+
+Every item in the Game Configuration and Settings menus has a short description at the bottom while
+you have it selected.
+
+SAVING: Game Configuration > Save game stores the whole game, move by move, as a file in the logs
+folder (logs/<name>.log). Open game loads it and carries on where it stopped.
+
+RECORDS: win a Beginner, Intermediate or Expert game without using any help and beat your best time,
+and you can enter your name with the on-screen keyboard.
+
+
+BACKGROUNDS (START > Settings > Background)
+-------------------------------------------
+Browse with Left/Right, press A to choose, B to cancel. You see the real game on top of each choice.
+  Classic         the plain look of the original
+  six flat colours  Charcoal, Slate, Dusty Blue, Sage, Stone, Sand
+  Art pack        six pictures, a separate optional download (MinesPerfectArtPack.zip). Copy its
+                  "backgrounds" folder into the game's folder (roms/ports/minesperfect/) and they
+                  appear in the list. The pictures are fan art, free to use with this game only,
+                  not for commercial use and not to be used anywhere else (see LICENCE.txt in the
+                  pack).
+  Your own pictures  put a .bmp file into the backgrounds folder (create the folder if needed).
+                  Uncompressed 24-bit works best. 640 x 480 is ideal; any other size is cropped
+                  from the middle to the screen's 4:3 shape. The file name shows in the list
+                  (underscores become spaces). Delete the file to remove it from the list.
+
+
+SOUND
 -----
- * Your records, the level, mode and board are kept in mineperf.ini in this folder; sound, zoom, background and the
-   solver switch in minesperfect.cfg; saved games in logs/. Delete mineperf.ini to start fresh.
- * The seven sound effects in sound/ (new, open, flag, error, deadend, won, lost) were made
-   for this port. See "ORIGINAL GAME SOUNDS" below to use the original game's instead.
- * More boards: put the board's .txt and .bmp files into boards/ (see the three included).
- * log.txt in this folder shows what the game printed if something goes wrong.
- * The original's highscore sending is not part of this port.
+The seven sound effects (sound folder: new, open, flag, error, deadend, won, lost) were made for
+this port. Turn sound off under START > Settings > Sound.
 
-ORIGINAL GAME SOUNDS
---------------------
-The original Mines-Perfect has its own sound pack, offered as a separate download ("sound.zip").
-It is not included here because the download does not state its licence. If you want those sounds:
+To use the sounds of the original Mines-Perfect instead: they are a separate download that is not
+included here, because it does not state a licence.
+  1. Get the sound pack from https://sourceforge.net/projects/mines-perfect/ (the author's page is
+     www.czeppi.de). You do not need the Windows program itself, only the sound pack.
+  2. Unzip it. It holds seven files: FLAG.WAV, LOST.WAV, ERROR.WAV, NEW.WAV, Won.wav, OPEN.WAV and
+     Deadend.wav, in a folder called sound.
+  3. Copy them into roms/ports/minesperfect/sound/ on the card and let them REPLACE the files that
+     are there (capital letters in the names do not matter). If you copy under other names, delete
+     ours first, otherwise ours are the ones played. A sound you leave out keeps the port's own.
+  4. Start the game.
+Any .wav files of your own work the same way (8 or 16 bit, mono or stereo, any sample rate).
 
-  1. Get it from the project page: https://sourceforge.net/projects/mines-perfect/
-     (files section; the author's page is www.czeppi.de). The Windows download "mines140.zip"
-     is not needed, only the sound pack.
-  2. Unzip it. It contains seven files: FLAG.WAV, LOST.WAV, ERROR.WAV, NEW.WAV, Won.wav,
-     OPEN.WAV and Deadend.wav (inside a folder called sound).
-  3. Copy those seven files into the sound folder of this port on the SD card
-     (roms/ports/minesperfect/sound/) and let them REPLACE the files that are there
-     (flag.wav, lost.wav, error.wav, new.wav, won.wav, open.wav, deadend.wav). Capital letters in
-     the names do not matter on the card. If your computer asks whether to replace, say yes. If
-     you copy them to another name, delete ours first, otherwise ours are the ones played.
-  4. Start the game. Any single sound you leave out simply keeps the port's own.
 
-You can also use any .wav files of your own the same way (8 or 16 bit, mono or stereo, any sample
-rate). To turn all sounds off: START > Settings > Sound.
+MORE BOARDS
+-----------
+A board is a .txt file and a .bmp picture with the same name in the boards folder. Three extra ones
+(Parquet, Pentagon, Triangle14) are included; put more there and they appear under Board.
+
+
+FILES AND TROUBLESHOOTING
+-------------------------
+Everything the game remembers is in its folder, roms/ports/minesperfect/:
+  mineperf.ini        your level, mode, board and best times (delete it to start fresh)
+  minesperfect.cfg    sound, zoom, background and the solver switch
+  logs/               your saved games
+  log.txt             what the game printed on its last run - please attach it if you report a problem
+A normal exit ends log.txt with "EXIT CODE: 0".
+The original's online high score sending is not part of this port.

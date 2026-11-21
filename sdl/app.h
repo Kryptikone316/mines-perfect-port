@@ -48,7 +48,7 @@ bool ui_selfdefined(MinesPerfect::Level& lvl);
 void ui_best_times(MinesPerfect::Options* options);
 void ui_new_record(MinesPerfect::Options* options, int msecs, bool certified);
 void ui_help_pages(int first);          // first = page number (see g_pages in ui.cpp: PAGE_SOLVER)
-enum { PAGE_SOLVER = 2 };
+enum { PAGE_SOLVER = 3 };
 void ui_about();
 int  ui_pick_file(const char* title, const std::vector<std::string>& names);
 void g_dim(Surf& s);
