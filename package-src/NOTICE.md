@@ -9,7 +9,7 @@ not affiliated with or endorsed by its author.
 * The game rules, the solver, the board geometry, the saved-game format and the original controls
   (`core/`, `gui/`) are the original code. Changes for this port are small: a compatibility header
   for a current compiler (clock, itoa, stricmp), two `max`/`transform` fixes, `!in` instead of
-  `in == 0` for streams, and four geometry accessors added to the board control for the gamepad cursor.
+  `in == 0` for streams, a one-condition bug fix in `Logbook::redo` (redo after undo threw an error), CR stripping when reading board and settings files, and four geometry accessors added to the board control for the gamepad cursor.
   Everything the original did with wxWidgets (window, menus, dialogs, bitmaps, sound, timer) is
   replaced by the new SDL2 front end in `sdl/`, written for this port. The port's program code is under the same
   licence, GPL-2.0-or-later .

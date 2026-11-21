@@ -31,7 +31,7 @@ Run from a folder holding boards/ and sound/ (work/run is a scratch copy).
 ## Test hooks (host and QEMU)
 MP_HEADLESS=1, MP_SHOTS=<dir> + MP_SHOT_FRAMES="f1,f2" (BMP), MP_JOY="frame:mask,..." (tools/joy.py), MP_MAXFRAMES, MP_SEED=<n> (fixed boards; host and
 MIPS differ for the same seed: random_shuffle differs between libstdc++ versions - each is deterministic), MP_START="board,level[,h,w,mines]",
-MP_LISTBOARDS=1, MP_UI=newrecord|best|selfdef|help|about|save|open|settings|tools|mode, MP_BOT=1 (opens the middle, solveAll(3), guesses when stuck, prints BOT result).
+MP_LISTBOARDS=1, MP_UI=newrecord|best|selfdef|help|about|save|open|settings|tools|mode, MP_UNDOREDO=1 (+MP_UR_CLICKS, MP_UR_KEEPMODE, MP_UR_SOLVE=n: play, undo everything, redo everything, compare the state), MP_BOT=1 (opens the middle, solveAll(3), guesses when stuck, prints BOT result).
 Bot result 2026-11-20: 36/36 games WON (square beginner/intermediate/expert, hexagon, triangle, 3d-grid selfdefined, seeds 1-3) on host x86-64 AND
 QEMU mipsel, so the solver/Lucky mode work on the 32-bit target. Screenshots go to work/shots (not /tmp); shots.py makes a contact sheet and deletes BMPs.
 
@@ -44,3 +44,6 @@ QEMU mipsel, so the solver/Lucky mode work on the 32-bit target. Screenshots go 
 - Not device-tested: pad feel, cursor visibility, zoom choice (auto smooth vs integer), sound volumes (plat_snd_play gain 1.0, peak 0.6), time to solve on the 74Kc (solver time on Expert in Hint/Lucky mode).
 - Licence of the extra boards (Parquet, Pentagon, Triangle14 from the author's binary dist): shipped as data under the author's GPL; SF project says GPL.
 - No repo/PR yet.
+
+## Fixed bugs of the original
+- Logbook::redo (core/logbook.cpp): the loop that moves cur_index past computer logs tested `log.isComputerLog()` (the log just redone) instead of `logs[cur_index].isComputerLog()`; after redoing the first open the next redo hit the start_timer log and threw 'Logbook::redo(): invalid log! (start_timer)'. Found on the device 2026-11-20 (undo to the start after a loss, then redo). Same code in m42a's fork. Fixed; undo-all + redo-all returns to the identical state on all boards (host and QEMU).

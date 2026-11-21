@@ -532,7 +532,7 @@ bool Logbook::redo (Log& log)
     play_index = cur_index; // play_index mitaktualisieren
   }
   while (cur_index < logs.size() 
-         && (!logs[cur_index].valid || log.isComputerLog()));
+         && (!logs[cur_index].valid || logs[cur_index].isComputerLog()));   // SF3500 port: was log.isComputerLog() (the log just redone), so a start_timer log became the next redo and threw
   
   // Zeit synchronisieren
   clock0 = clock() - log.time1 * CLK_TCK / 1000;

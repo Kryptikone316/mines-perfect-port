@@ -731,6 +731,47 @@ static void run()
         else if (!strcmp(ui, "helpmenu")) menu_help();
         game_show();
     }
+    if (getenv("MP_UNDOREDO"))   // test hook: play to a loss (Original mode), undo to the start step by step, redo step by step
+    {
+        unsigned rs = (unsigned) (getenv("MP_SEED") ? atoi(getenv("MP_SEED")) : 1) * 2654435761u + 7;
+        int maxclicks = getenv("MP_UR_CLICKS") ? atoi(getenv("MP_UR_CLICKS")) : 400;
+        if (!getenv("MP_UR_KEEPMODE")) g_game->changeModus(ORIGINAL);
+        Board* bd = g_game->getBoard();
+        int clicks = 0, flags = 0;
+        while (!bd->gameOver() && clicks < maxclicks)
+        {
+            rs = rs * 1664525u + 1013904223u;
+            CellNr k = (CellNr) ((rs >> 8) % (unsigned) bd->getNumCells());
+            if (bd->cellIsOpen(k)) continue;
+            g_cur = k;
+            if ((rs >> 4) % 5 == 0) { g_b_down = true; send_mouse(MouseEvent::RIGHT_DOWN); g_b_down = false; send_mouse(MouseEvent::RIGHT_UP); flags++; }
+            else { g_a_down = true; send_mouse(MouseEvent::LEFT_DOWN); g_a_down = false; send_mouse(MouseEvent::LEFT_UP); }
+            clicks++;
+        }
+        if (getenv("MP_UR_SOLVE"))    // a long, loss-free game made of solver steps and flags, then partial undo/redo
+        {
+            int steps = atoi(getenv("MP_UR_SOLVE"));
+            for (int i = 0; i < steps && !bd->gameOver(); i++) { if (i % 4 == 3) { g_game->solveAll(1); } else g_game->solveOne(); }
+            int bo = bd->getNumOpen(), bf = bd->getNumFlagged(), bl = bd->gameIsLost(), bw = bd->gameIsWon();
+            int k = 3, bad = 0;
+            for (int i = 0; i < k; i++) g_game->undo(false);
+            for (int i = 0; i < k; i++) g_game->redo();
+            Board* b3 = g_game->getBoard();
+            if (b3->getNumOpen() != bo || b3->getNumFlagged() != bf || (int) b3->gameIsLost() != bl || (int) b3->gameIsWon() != bw) bad = 1;
+            fprintf(stderr, "UR partial undo/redo x%d: open %d->%d flagged %d->%d => %s\n", k, bo, b3->getNumOpen(), bf, b3->getNumFlagged(), bad ? "DIFFERENT" : "SAME");
+        }
+        fprintf(stderr, "UR played: clicks=%d flags=%d state=%s open=%d\n", clicks, flags, bd->gameIsLost() ? "LOST" : bd->gameIsWon() ? "WON" : "?", bd->getNumOpen());
+        int b_open = bd->getNumOpen(), b_flag = bd->getNumFlagged(), b_lost = bd->gameIsLost(), b_won = bd->gameIsWon();
+        int ups = 0, downs = 0;
+        try { for (; ups < 200; ups++) { int before = g_game->getBoard()->getNumOpen() + g_game->getBoard()->getNumFlagged(); g_game->undo(false); if (g_game->getBoard()->getNumOpen() + g_game->getBoard()->getNumFlagged() == before && ups > 0 && before == 0) break; } }
+        catch (const Exception& e) { fprintf(stderr, "UR undo error after %d: %s\n", ups, e.getText().c_str()); }
+        fprintf(stderr, "UR after undo x%d: open=%d flagged=%d\n", ups, g_game->getBoard()->getNumOpen(), g_game->getBoard()->getNumFlagged());
+        try { for (; downs < 200; downs++) g_game->redo(); }
+        catch (const Exception& e) { fprintf(stderr, "UR redo ERROR after %d redos: %s\n", downs, e.getText().c_str()); app_quit(3); }
+        { Board* b2 = g_game->getBoard(); bool same = b2->getNumOpen() == b_open && b2->getNumFlagged() == b_flag && (int) b2->gameIsLost() == b_lost && (int) b2->gameIsWon() == b_won;
+          fprintf(stderr, "UR redo x%d: open=%d flagged=%d lost=%d won=%d => %s\n", downs, b2->getNumOpen(), b2->getNumFlagged(), (int) b2->gameIsLost(), (int) b2->gameIsWon(), same ? "SAME AS BEFORE" : "DIFFERENT"); }
+        app_quit(0);
+    }
     if (getenv("MP_BOT"))     // test hook: open the middle cell, let the solver finish the game, report
     {
         g_a_down = true; send_mouse(MouseEvent::LEFT_DOWN); g_a_down = false; send_mouse(MouseEvent::LEFT_UP);
