@@ -388,7 +388,7 @@ static const HelpPage g_pages[] =
       "A: open the cell.     B: put a flag on it.\n"
       "X: hint (when the solver is on).     Y: new game.\n"
       "L1: undo a move.     R1: redo it.\n"
-      "L2 / R2: zoom out / in. Big boards scroll with the cursor.\n"
+      "L2 / R2: zoom out / in, one step at a time. Both together: back to Auto, the whole board.\n"
       "START: the menu.     SELECT + START: quit." },
     { "Opening and flagging",
       "Press A on a covered cell to open it, B to flag it.\n"

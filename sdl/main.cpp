@@ -211,18 +211,35 @@ static BoardCtrl* board_ctrl() { return g_game->getBoardCtrl(); }
 // zoom: 0 = auto (integer, or smooth when an integer would leave much unused), 1..4 = that integer, 5 = smooth fit
 struct View { float s; bool smooth; int vwc, vhc, dw, dh; };
 
+static float fit_scale()
+{
+    return std::min((float) SCR_W / std::max(1, g_win.w), (float) SCR_H / std::max(1, g_win.h));
+}
+
+// what "Auto" picks: the whole board on screen, in whole steps (sharp) or smoothed when a whole step leaves much unused
+static int auto_pref()
+{
+    float fit = fit_scale();
+    int zi = (int) fit;
+    if (zi < 1) zi = 1;
+    int pref = (fit >= 1.0f && fit / zi > 1.25f && zi < 4) ? 5 : zi;
+    if (pref > 4 && pref != 5) pref = 4;
+    return pref;
+}
+
+static float scale_of_pref(int pref)
+{
+    float fit = fit_scale();
+    float s = pref == 5 ? (fit < 1.0f ? 1.0f : fit) : (float) pref;
+    return s > 4.0f ? 4.0f : s;
+}
+
 static View view_now()
 {
     View v;
-    float fit = std::min((float) SCR_W / std::max(1, g_win.w), (float) SCR_H / std::max(1, g_win.h));
+    float fit = fit_scale();
     int pref = g_zoom_pref;
-    if (pref == 0)
-    {
-        int zi = (int) fit;
-        if (zi < 1) zi = 1;
-        pref = (fit >= 1.0f && fit / zi > 1.25f && zi < 4) ? 5 : zi;
-        if (pref > 4 && pref != 5) pref = 4;
-    }
+    if (pref == 0) pref = auto_pref();
     if (pref == 5) { v.s = fit < 1.0f ? 1.0f : fit; v.smooth = v.s != (float) (int) v.s; }
     else { v.s = (float) pref; v.smooth = false; }
     if (v.s > 4.0f) { v.s = 4.0f; v.smooth = false; }
@@ -236,6 +253,37 @@ static View view_now()
 }
 
 static int zoom_int_now() { View v = view_now(); return std::max(1, std::min(4, (int) (v.s + 0.5f))); }
+
+// On-screen note after a zoom change
+static string g_toast;
+static unsigned g_toast_until = 0;
+static void toast(const string& t) { g_toast = t; g_toast_until = plat_ticks() + 1500; }
+
+// L2/R2: step along the zoom ladder 1x .. 4x with "Auto" (the whole board) at its proper place; one step at a time,
+// so R2 then L2 always gets back to Auto. L2 + R2 together jump straight to Auto.
+static void zoom_step(int dir)
+{
+    struct Ent { float s; int pref; };
+    vector<Ent> lad;
+    float sa = scale_of_pref(auto_pref());
+    lad.push_back(Ent{ sa, 0 });
+    for (int z = 1; z <= 4; z++) if (fabsf((float) z - sa) > 0.02f) lad.push_back(Ent{ (float) z, z });
+    std::sort(lad.begin(), lad.end(), [](const Ent& a, const Ent& b) { return a.s < b.s; });
+    int cur = 0;
+    if (g_zoom_pref == 0) { for (size_t i = 0; i < lad.size(); i++) if (lad[i].pref == 0) cur = (int) i; }
+    else
+    {
+        float sc = view_now().s; float best = 1e9f;
+        for (size_t i = 0; i < lad.size(); i++) { float d = fabsf(lad[i].s - sc) + (lad[i].pref == g_zoom_pref ? 0.0f : 0.001f); if (d < best) { best = d; cur = (int) i; } }
+    }
+    int nxt = cur + dir;
+    if (nxt < 0 || nxt >= (int) lad.size()) nxt = cur;
+    g_zoom_pref = lad[nxt].pref;
+    char b[48];
+    if (g_zoom_pref == 0) snprintf(b, sizeof b, "Zoom: Auto (whole board)"); else snprintf(b, sizeof b, "Zoom: %dx", g_zoom_pref);
+    toast(b);
+    cfg_save();
+}
 
 static Surf g_scene;                 // cache of the rendered scene (the pad menus draw over copies of it)
 static CellNr g_scene_cur = -2;
@@ -301,6 +349,12 @@ void app_draw_scene()
         g_win_dirty = false; g_scene_dirty = false; g_scene_cur = g_cur; g_scene_zoom = zk;
     }
     memcpy(g_scr.px, g_scene.px, (size_t) SCR_W * SCR_H * 2);
+    if (!g_toast.empty() && (int) (g_toast_until - plat_ticks()) > 0)
+    {
+        int w = g_text_w(font_bold(), g_toast.c_str()) + 28, x = (SCR_W - w) / 2;
+        g_bevel(g_scr, x, 8, w, 30, true, 0xC0C0C0);
+        g_text_c(g_scr, font_bold(), SCR_W / 2, 12, 0x000000, g_toast.c_str());
+    }
 }
 
 //******************************************************************************
@@ -626,7 +680,7 @@ static void menu_settings()
         char b[48];
         if (g_zoom_pref == 0) snprintf(b, sizeof b, "Zoom: auto"); else if (g_zoom_pref == 5) snprintf(b, sizeof b, "Zoom: fit (smooth)"); else snprintf(b, sizeof b, "Zoom: %dx", g_zoom_pref);
         it.push_back(MItem(b, C_ZOOM, -1, true, false,
-            "Auto fits the whole board on screen. You can also choose a fixed size. L2/R2 change it during play."));
+            "Auto fits the whole board on screen. You can also choose a fixed size. During play, L2/R2 zoom out/in step by step; both together return to Auto."));
         it.push_back(MItem(string("Sound: ") + (g_sound ? "On" : "Off"), C_SOUND, g_sound ? 1 : 0, true, false, "Game sound effects."));
         int id = ui_menu("Settings", it, sel);
         if (id < 0) return;
@@ -831,8 +885,9 @@ static void run()
             if (g_pad.down & B_Y) { g_game->newGame(); game_show(); }
             if (g_pad.down & B_L1) { g_game->undo(false); game_show(); }
             if (g_pad.down & B_R1) { g_game->redo(); game_show(); }
-            if (g_pad.down & B_L2) { g_zoom_pref = std::max(1, zoom_int_now() - 1); cfg_save(); }
-            if (g_pad.down & B_R2) { g_zoom_pref = std::min(4, zoom_int_now() + 1); cfg_save(); }
+            if ((g_pad.down & (B_L2 | B_R2)) && (g_pad.held & B_L2) && (g_pad.held & B_R2)) { g_zoom_pref = 0; toast("Zoom: Auto (whole board)"); cfg_save(); }
+            else if (g_pad.down & B_L2) zoom_step(-1);
+            else if (g_pad.down & B_R2) zoom_step(1);
             if (g_pad.down & B_START) { g_a_down = g_b_down = false; menu_main(); }
 
             app_poll_timer();

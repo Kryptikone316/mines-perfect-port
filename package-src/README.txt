@@ -29,7 +29,9 @@ CONTROLS
   X                hint (when the solver is on)
   Y                new game
   L1 / R1          undo / redo a move
-  L2 / R2          zoom out / in (big boards scroll with the cursor)
+  L2 / R2          zoom out / in, one step at a time. "Auto" (the whole board) is one of the steps.
+                   Zoomed-in boards scroll with the cursor.
+  L2 + R2 together  jump straight back to Auto
   START            menu
   SELECT + START   quit
 
