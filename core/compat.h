@@ -14,7 +14,7 @@
 #include <algorithm>
 
 #ifndef _VARIANT_
-#define _VARIANT_ 3            // 3 = Visual C++ 6.0 / wxWindows 2.40 build, which is what the released mineperf.exe 1.4.0 is
+#define _VARIANT_ 5            // own value for this port (1 Borland, 2 Dev-C++, 3 Visual C++ = the released 1.4.0 exe, 4 m42a's Linux port); only written into saved games, never read back
 #endif
 
 // Wall clock in milliseconds, so every clock() in the old code is wall time (clock() on Linux counts CPU time of all threads).
