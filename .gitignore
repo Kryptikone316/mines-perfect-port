@@ -3,3 +3,5 @@ work/
 package/
 *.o
 assets/backgrounds/
+package-art/
+assets/boxart-original-*.png
