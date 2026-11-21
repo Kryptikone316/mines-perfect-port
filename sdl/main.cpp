@@ -30,7 +30,9 @@ static int g_saved_mode = LUCKY;        // what to restore when it is switched o
 static bool g_saved_murphy = true;
 static Surf g_bg;                       // background picture (640x480), if one is chosen
 static string g_bg_name;                // file name in backgrounds/, empty = classic plain colour
-static bool g_bg_on = false;
+static bool g_bg_on = false;            // a picture is loaded in g_bg
+static uint32_t g_bg_rgb = 0x006060;    // flat colour when no picture
+static bool g_bg_shadow = false;        // anything but Classic gets a drop shadow under the window
 static bool g_scene_dirty = true;
 static int g_zoom_pref = 0;             // 0 = fit the whole board, else 1..4
 static CellNr g_cur = INVALID_CELL;
@@ -166,11 +168,39 @@ static bool bg_load(const string& file)         // false: unreadable, the caller
     return true;
 }
 
-static void bg_apply(const string& file)
+// Stock backgrounds: flat matte neutral colours built into the game (no files). "Classic" is the original plain teal.
+struct StockBg { const char* name; uint32_t rgb; };
+static const StockBg g_stock[] =
 {
-    g_bg_on = !file.empty() && bg_load(file);
-    g_bg_name = g_bg_on ? file : string();
+    { "Classic",   0x006060 },
+    { "Charcoal",  0x2E3033 },
+    { "Slate",     0x4A5560 },
+    { "Dusty Blue", 0x56697F },
+    { "Sage",      0x667A64 },
+    { "Stone",     0x77746E },
+    { "Sand",      0x9C9279 },
+};
+static const int NSTOCK = (int) (sizeof g_stock / sizeof *g_stock);
+
+// name kept in minesperfect.cfg: "" = Classic, "@Slate" = a stock colour, otherwise a file in backgrounds/ (optional art pack or your own)
+static void bg_apply(string file)      // by value: callers pass g_bg_name itself
+{
+    g_bg_on = false; g_bg_shadow = false; g_bg_rgb = g_stock[0].rgb;
+    g_bg_name.clear();
+    if (!file.empty() && file[0] == '@')
+    {
+        for (int i = 1; i < NSTOCK; i++)
+            if (file == string("@") + g_stock[i].name) { g_bg_rgb = g_stock[i].rgb; g_bg_shadow = true; g_bg_name = file; }
+    }
+    else if (!file.empty() && bg_load(file)) { g_bg_on = true; g_bg_shadow = true; g_bg_name = file; }
     g_scene_dirty = true;
+}
+
+static string bg_title_of(const string& name)
+{
+    if (name.empty()) return "Classic";
+    if (name[0] == '@') return name.substr(1);
+    return bg_title(name);
 }
 
 //******************************************************************************
@@ -214,7 +244,7 @@ static int g_scene_zoom = -1, g_scene_camx = -1, g_scene_camy = -1;
 static void render_scene()
 {
     Surf& d = g_scene;
-    if (g_bg_on) memcpy(d.px, g_bg.px, (size_t) SCR_W * SCR_H * 2); else g_fill(d, 0, 0, SCR_W, SCR_H, 0x006060);
+    if (g_bg_on) memcpy(d.px, g_bg.px, (size_t) SCR_W * SCR_H * 2); else g_fill(d, 0, 0, SCR_W, SCR_H, g_bg_rgb);
     if (g_win.w <= 0) return;
     View v = view_now();
 
@@ -232,7 +262,7 @@ static void render_scene()
     g_cam_y = std::max(0, std::min(g_cam_y, g_win.h - v.vhc));
 
     int ox = (SCR_W - v.dw) / 2, oy = (SCR_H - v.dh) / 2;
-    if (g_bg_on) g_shade(d, ox + 7, oy + 7, v.dw, v.dh);      // drop shadow so the window lifts off the picture
+    if (g_bg_shadow) g_shade(d, ox + 7, oy + 7, v.dw, v.dh);      // drop shadow so the window lifts off the picture
     if (v.smooth) g_scale_smooth(d, g_win, ox, oy, v.dw, v.dh, g_cam_x, g_cam_y, v.vwc, v.vhc);
     else g_scale_blit(d, g_win, (int) v.s, ox, oy, g_cam_x, g_cam_y, v.vwc, v.vhc);
 
@@ -255,7 +285,8 @@ static void render_scene()
     if (SCR_H - (oy + v.dh) >= 26)
     {
         const char* hint = g_solver ? "A open   B flag   X hint   Y new   L1 undo   R1 redo   START menu" : "A open   B flag   Y new   L1 undo   R1 redo   START menu";
-        if (g_bg_on) g_text_c(d, font_small(), SCR_W / 2 + 1, SCR_H - 21, 0x000000, hint);
+        if (g_bg_on) g_shade(d, 0, SCR_H - 28, SCR_W, 28);      // calm strip under the hint on busy pictures
+        if (g_bg_shadow) g_text_c(d, font_small(), SCR_W / 2 + 1, SCR_H - 21, 0x000000, hint);
         g_text_c(d, font_small(), SCR_W / 2, SCR_H - 22, 0xE8F4F4, hint);
     }
 }
@@ -554,18 +585,19 @@ static bool menu_config()
 // Background gallery: full-screen preview with the real game window on top, Left/Right to browse, A to choose.
 static void menu_background()
 {
-    vector<string> files = bg_files();
-    int n = (int) files.size() + 1;                 // entry 0 = classic
-    int cur = 0;
-    for (size_t i = 0; i < files.size(); i++) if (files[i] == g_bg_name) cur = (int) i + 1;
+    vector<string> files = bg_files();              // optional art pack and your own pictures
+    int n = NSTOCK + (int) files.size();
     string orig = g_bg_name;
+    auto entry = [&](int i) -> string { return i == 0 ? string() : i < NSTOCK ? string("@") + g_stock[i].name : files[i - NSTOCK]; };
+    int cur = 0;
+    for (int i = 0; i < n; i++) if (entry(i) == g_bg_name) cur = i;
     int shown = -1;
     for (;;)
     {
-        if (shown != cur) { bg_apply(cur == 0 ? string() : files[cur - 1]); if (cur && !g_bg_on) { /* unreadable file: shows classic */ } shown = cur; }
+        if (shown != cur) { bg_apply(entry(cur)); shown = cur; }
         app_draw_scene();
-        string name = cur == 0 ? "Classic" : bg_title(files[cur - 1]);
-        if (cur && !g_bg_on) name += " (cannot be read)";
+        string name = bg_title_of(entry(cur));
+        if (cur >= NSTOCK && !g_bg_on) name += " (cannot be read)";
         char head[48]; snprintf(head, sizeof head, "%d / %d", cur + 1, n);
         int w = 520, h = 50, x = (SCR_W - w) / 2, y = SCR_H - h - 6;
         g_bevel(g_scr, x, y, w, h, true, 0xC0C0C0);
@@ -588,9 +620,9 @@ static void menu_settings()
     for (;;)
     {
         vector<MItem> it;
-        string bgname = g_bg_on ? bg_title(g_bg_name) : string("Classic");
+        string bgname = bg_title_of(g_bg_name);
         it.push_back(MItem("Background: " + bgname, C_BG, -1, true, true,
-            "Pictures behind the mine field. Browse the gallery with a live preview; Classic is the plain original look. Your own .bmp pictures in the backgrounds folder show up too."));
+            "The colour or picture behind the mine field, with a live preview. Classic is the plain original look. Pictures from the optional art pack, or your own .bmp files, appear after the colours when they are in the backgrounds folder."));
         char b[48];
         if (g_zoom_pref == 0) snprintf(b, sizeof b, "Zoom: auto"); else if (g_zoom_pref == 5) snprintf(b, sizeof b, "Zoom: fit (smooth)"); else snprintf(b, sizeof b, "Zoom: %dx", g_zoom_pref);
         it.push_back(MItem(b, C_ZOOM, -1, true, false,

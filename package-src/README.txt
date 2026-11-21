@@ -37,7 +37,7 @@ MENU (START)
              Solver tools (solver on) - Hint, solve one move, solve all (to stage 1/2/3),
                                  auto-solve, max. stage, show mines
              Save game / Open game - replays/saves the whole game as logs/<name>.log
-  Settings   Background (gallery with live preview), Zoom (auto, fit smooth, 1x..4x), Sound On/Off
+  Settings   Background (colours, optional art pack, with live preview), Zoom (auto, fit smooth, 1x..4x), Sound On/Off
   Help       How to play, What is the solver?, About
   Quit
 
@@ -57,15 +57,17 @@ your previous mode.
 
 BACKGROUNDS
 -----------
-START > Settings > Background shows the gallery with the real game window on top: Left/Right to
-browse, A to choose, B to cancel. "Classic" is the plain original look. Six pictures are included
-(backgrounds/*.bg). They are fan art by the port's author: free to use with this port,
-not for commercial use, not to be used anywhere else (see backgrounds/LICENCE.txt).
+START > Settings > Background shows the choices with the real game window on top: Left/Right to
+browse, A to choose, B to cancel. Classic is the plain original look; six flat, matte, neutral
+colours (Charcoal, Slate, Dusty Blue, Sage, Stone, Sand) are built in.
+Optional art pack: a separate download (MinesPerfectArtPack.zip) with six pictures. Copy its
+"backgrounds" folder into this port's folder (roms/ports/minesperfect/) and they appear in the
+gallery after the colours. The pictures are fan art, free for use with this port only, not for
+commercial use, not to be used anywhere else (the pack carries its own LICENCE.txt).
 Your own pictures: put a .bmp file (uncompressed 24-bit is safest; 8 and 32 bit also work) into the
-backgrounds folder. Best is exactly 640 x 480; any other size is cropped from the middle to 4:3 and
-scaled to 640 x 480. The file name is shown in the gallery (underscores become spaces; a leading
-"03-" is only for ordering). Pictures with big calm areas and not too much contrast work best
-behind a board. Delete a file to remove it from the gallery.
+backgrounds folder (make it if it is not there). Best is exactly 640 x 480; any other size is cropped
+from the middle to 4:3 and scaled to 640 x 480. The file name is shown in the gallery (underscores
+become spaces; a leading "03-" is only for ordering). Delete a file to remove it from the gallery.
 
 NOTES
 -----
